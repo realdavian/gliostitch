@@ -1,0 +1,27 @@
+datasets:
+  brats2020:
+    root: /mnt/disk1/datasets/BraTS-2020
+    enabled: true
+  rhuh_gbm:
+    root: /mnt/disk1/datasets/RHUH-GBM
+    enabled: true
+  upenn_gbm:
+    root: /mnt/disk1/datasets/UPENN-GBM
+    enabled: true
+  ucsf_pdgm:
+    root: /mnt/disk1/datasets/UCSF-PDGM
+    enabled: true
+
+output_dir: /home/humanailab3/Project/gbm-surv-data-pipeline/output
+
+workers: 8
+
+dedup:
+  demographic_age_tol: 1.0
+  demographic_days_tol: 5.0
+  close_age_tol: 0.5
+  close_days_tol: 2.0
+
+cohort:
+  os_short_max_days: 300.0
+  os_mid_max_days: 450.0
