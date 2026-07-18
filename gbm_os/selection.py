@@ -40,7 +40,13 @@ def apply_criteria(
         mask &= df["dataset"].isin(criteria.datasets)
 
     if criteria.partition is not None:
-        partition_datasets = config.partition_map.get(criteria.partition, set())
+        # Use dataset_partition() so the implicit "train" partition (any dataset
+        # not listed in partition_map) is handled correctly.
+        unique_datasets = df["dataset"].unique()
+        partition_datasets = {
+            d for d in unique_datasets
+            if config.dataset_partition(d) == criteria.partition
+        }
         mask &= df["dataset"].isin(partition_datasets)
 
     if criteria.baseline_only:

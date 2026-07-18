@@ -41,7 +41,11 @@ def stratified_group_kfold(
 
     # Encode strata as a single string label (using all strat_key cols available)
     avail_strat = [c for c in strat_key if c in patient_df.columns]
-    patient_df["_stratum"] = patient_df[avail_strat].astype(str).agg("|".join, axis=1)
+    patient_df["_stratum"] = (
+        patient_df[avail_strat]
+        .astype(str)
+        .apply(lambda r: "|".join(r.values), axis=1)
+    )
 
     fold_col = np.full(len(patient_df), -1, dtype=int)
 
