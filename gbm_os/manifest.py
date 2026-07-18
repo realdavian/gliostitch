@@ -7,12 +7,29 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from gbm_manifest.core.schema import INTENSITY_PRENORMALISED, MANIFEST_COLUMNS
 from gbm_os.config import CohortConfig
 
 logger = logging.getLogger(__name__)
 
-# Dataset-level fact: RHUH volumes are pre-z-scored; others are not.
-_INTENSITY_PRENORM_DATASETS: frozenset[str] = frozenset({"rhuh_gbm"})
+# Derived from the schema's single source of truth; not a standalone declaration.
+_INTENSITY_PRENORM_DATASETS: frozenset[str] = frozenset(
+    d.value for d, prenorm in INTENSITY_PRENORMALISED.items() if prenorm
+)
+
+
+def _validate_manifest(df: pd.DataFrame) -> None:
+    """Assert the loaded CSV satisfies the manifest column contract.
+
+    To add or extend: edit MANIFEST_COLUMNS in gbm_manifest/core/schema.py —
+    the check here will pick up any new columns automatically.
+    """
+    missing = [c for c in MANIFEST_COLUMNS if c not in df.columns]
+    if missing:
+        raise ValueError(
+            f"Manifest is missing {len(missing)} required column(s): {missing}. "
+            "Regenerate the CSV with a compatible version of gbm_manifest."
+        )
 
 
 def _derive_os_class(os_days: pd.Series, short_max: int, mid_max: int) -> pd.Series:
@@ -29,6 +46,7 @@ def _derive_os_class(os_days: pd.Series, short_max: int, mid_max: int) -> pd.Ser
 def load_manifest(path: str | Path, config: CohortConfig) -> pd.DataFrame:
     """Load master_manifest.csv and append runtime-derived columns."""
     df = pd.read_csv(path)
+    _validate_manifest(df)
     logger.info(
         "Loaded manifest: %d rows from %d datasets",
         len(df),
