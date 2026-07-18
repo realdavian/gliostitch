@@ -12,10 +12,21 @@ class MonaiDataset:
     """Wraps a CohortView as a MONAI-compatible dataset.
 
     Emits dicts with:
-      image   [C, H, W, D]  float32  (modalities stacked in config.modalities order)
-      modality_mask  [C]  float32  (1 = present, 0 = zero-filled)
-      seg    [1, H, W, D]  (if include_seg=True)
+      <modality>  path str  (t1, t1ce, t2, flair — load with LoadImaged)
+      seg         path str  (if include_seg=True — load with LoadImaged)
+      seg_convention  str   (convention tag; use with SegRemapd after LoadImaged)
       + all SampleSpec scalars as flat keys
+
+    Seg label remapping (RHUH 3→4) is NOT applied automatically because this
+    backend hands file paths to MONAI's lazy loader. Add SegRemapd after
+    LoadImaged in your Compose pipeline::
+
+        from gbm_os.transforms.seg import SegRemapd
+        transforms = Compose([
+            LoadImaged(keys=["t1ce", "seg"]),
+            EnsureChannelFirstd(keys=["t1ce", "seg"]),
+            SegRemapd(seg_key="seg"),
+        ])
     """
 
     def __init__(
@@ -24,7 +35,6 @@ class MonaiDataset:
         config: CohortConfig,
         transforms=None,
         include_seg: Optional[bool] = None,
-        remap_seg: bool = False,
     ) -> None:
         try:
             from monai.data import Dataset
@@ -39,7 +49,6 @@ class MonaiDataset:
         self._config = config
         self._transforms = transforms
         self._include_seg = include_seg if include_seg is not None else config.include_seg
-        self._remap_seg = remap_seg
         self._dataset = self._build(view)
 
     def _build(self, view):

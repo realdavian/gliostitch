@@ -3,9 +3,25 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import numpy as np
+
 from gbm_os.config import CohortConfig
+from gbm_os.transforms.seg import remap_seg
 
 logger = logging.getLogger(__name__)
+
+
+def _load_seg_remapped(path: str, seg_convention: str | None):
+    """Load a seg NIfTI, remap labels to BraTS convention, return a tio.LabelMap."""
+    import nibabel as nib
+    import torch
+    import torchio as tio
+
+    img = nib.load(path)
+    arr = np.asarray(img.dataobj, dtype=np.int32)
+    if seg_convention:
+        arr = remap_seg(arr, seg_convention)
+    return tio.LabelMap(tensor=torch.from_numpy(arr[np.newaxis]), affine=np.array(img.affine))
 
 
 class TorchioDataset:
@@ -29,8 +45,8 @@ class TorchioDataset:
                 p = spec.paths.get(mod)
                 if p is not None and spec.present.get(mod, False):
                     data[mod] = tio.ScalarImage(p)
-            if self._include_seg and spec.paths.get("seg"):
-                data["seg"] = tio.LabelMap(spec.paths["seg"])
+            if self._include_seg and spec.paths.get("seg") and spec.present.get("seg", False):
+                data["seg"] = _load_seg_remapped(spec.paths["seg"], spec.seg_convention)
             data["dataset"] = spec.dataset
             data["patient_id"] = spec.patient_id
             data["age"] = spec.age
