@@ -83,11 +83,13 @@ class CohortSelector:
         # Step 7: resolve duplicates (keep highest-priority dataset)
         df = self._resolve_duplicates(df, exclusions)
 
-        # Step 8: assign partition (UPENN test set vs training)
+        # Step 8: assign partition
         df["partition"] = "train"
-        df.loc[df["dataset"] == "upenn_gbm", "partition"] = "external_test"
+        if self.cfg.external_test_datasets:
+            mask = df["dataset"].isin(self.cfg.external_test_datasets)
+            df.loc[mask, "partition"] = "external_test"
 
-        log.info("cohort: selected %d sessions (train=%d, test=%d)",
+        log.info("cohort: selected %d sessions (train=%d, external_test=%d)",
                  len(df),
                  (df["partition"] == "train").sum(),
                  (df["partition"] == "external_test").sum())

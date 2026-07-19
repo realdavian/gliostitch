@@ -25,3 +25,7 @@ dedup:
 cohort:
   os_short_max_days: 300.0
   os_mid_max_days: 450.0
+  # Datasets assigned partition="external_test". All others get "train".
+  # Set to [] to disable partitioning entirely.
+  external_test_datasets:
+    - upenn_gbm
