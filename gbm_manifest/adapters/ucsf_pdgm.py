@@ -15,6 +15,7 @@ from typing import Iterator
 import pandas as pd
 
 from ..core.exceptions import MissingColumnError
+from ..core.layout import LayoutIssue
 from ..core.schema import ClinicalRecord, Dataset, RawSession, SegConvention
 from .base import register_adapter
 from .normalize import (event_from_int, normalize_eor_categorical,
@@ -86,3 +87,43 @@ class UCSFAdapter:
         """dir 'UCSF-PDGM-0004' -> csv key 'UCSF-PDGM-004' (3-digit)."""
         m = _NUM.search(session.patient_id)
         return f"UCSF-PDGM-{int(m.group()):03d}" if m else session.patient_id
+
+    def check_layout(self) -> list[LayoutIssue]:
+        issues: list[LayoutIssue] = []
+
+        if not self.root.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="root directory",
+                expected=str(self.root),
+                fix=f"Create or mount the UCSF-PDGM data directory at {self.root}",
+            ))
+            return issues
+
+        v5_dir = self.root / _V5
+        if not v5_dir.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="UCSF-PDGM-v5 subdirectory",
+                expected=str(v5_dir),
+                fix=f"Extract the UCSF-PDGM zip directly into {self.root} — "
+                    f"UCSF-PDGM-v5/ must appear as a direct child",
+            ))
+            return issues
+
+        metadata = self.root / "UCSF-PDGM-metadata_v5.csv"
+        if not metadata.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="UCSF-PDGM-metadata_v5.csv",
+                expected=str(metadata),
+                fix=f"Place UCSF-PDGM-metadata_v5.csv directly inside {self.root} "
+                    f"(not inside UCSF-PDGM-v5/)",
+            ))
+
+        subjects = list(v5_dir.glob("*_nifti"))
+        if not subjects:
+            issues.append(LayoutIssue(
+                severity="error", check="patient NIfTI directories",
+                expected=str(v5_dir / "*_nifti"),
+                fix=f"Extract patient *_nifti directories into {v5_dir}",
+            ))
+
+        return issues

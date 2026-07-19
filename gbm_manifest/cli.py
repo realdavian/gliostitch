@@ -147,5 +147,48 @@ def validate(
         typer.echo(f"OK: {len(df)} rows, {len(df.columns)} columns, paths verified.")
 
 
+@app.command("verify-layout")
+def verify_layout(
+    config: Annotated[Path, typer.Option("--config", "-c")] = _DEFAULT_CONFIG,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
+):
+    """Check each dataset's on-disk directory structure before running the pipeline."""
+    setup_logging(verbose=verbose)
+    from .stages.verify import run_layout_check
+
+    cfg = load_config(config)
+    results = run_layout_check(cfg)
+
+    error_count = 0
+    for ds_name, issues in results.items():
+        ds_cfg = cfg.datasets[ds_name]
+        typer.echo(f"\nChecking {ds_name}  @  {ds_cfg.root}")
+        if not issues:
+            typer.echo("  ✓  all checks passed")
+            continue
+        errors = [i for i in issues if i.severity == "error"]
+        warnings = [i for i in issues if i.severity == "warning"]
+        for issue in errors:
+            typer.echo(f"  ✗  [error] {issue.check}")
+            typer.echo(f"     Expected : {issue.expected}")
+            typer.echo(f"     Fix      : {issue.fix}")
+        for issue in warnings:
+            typer.echo(f"  ⚠  [warning] {issue.check}")
+            typer.echo(f"     Expected : {issue.expected}")
+            typer.echo(f"     Fix      : {issue.fix}")
+        error_count += len(errors)
+
+    typer.echo("")
+    if error_count:
+        typer.echo(
+            f"Summary: {error_count} error(s) found — fix the above before running "
+            "`gbm-manifest build`",
+            err=True,
+        )
+        raise typer.Exit(1)
+    else:
+        typer.echo("Summary: all layout checks passed.")
+
+
 if __name__ == "__main__":
     app()

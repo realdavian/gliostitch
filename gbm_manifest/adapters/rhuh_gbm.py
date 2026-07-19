@@ -13,6 +13,7 @@ from typing import Iterator
 import pandas as pd
 
 from ..core.exceptions import MissingColumnError
+from ..core.layout import LayoutIssue
 from ..core.schema import ClinicalRecord, Dataset, RawSession, SegConvention
 from .base import register_adapter
 from .normalize import (event_from_censored_flag, normalize_eor_categorical,
@@ -85,3 +86,32 @@ class RHUHAdapter:
 
     def clinical_key(self, session: RawSession) -> str:
         return session.patient_id
+
+    def check_layout(self) -> list[LayoutIssue]:
+        issues: list[LayoutIssue] = []
+
+        if not self.root.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="root directory",
+                expected=str(self.root),
+                fix=f"Create or mount the RHUH-GBM data directory at {self.root}",
+            ))
+            return issues
+
+        subjects = list(self.root.glob("RHUH-*"))
+        if not subjects:
+            issues.append(LayoutIssue(
+                severity="error", check="patient directories (RHUH-*)",
+                expected=str(self.root / "RHUH-*"),
+                fix=f"Extract patient RHUH-* directories directly into {self.root}",
+            ))
+
+        clinical = self.root / _CLINICAL
+        if not clinical.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="manifests/clinical_info.csv",
+                expected=str(clinical),
+                fix=f"Ensure manifests/clinical_info.csv is present inside {self.root}",
+            ))
+
+        return issues

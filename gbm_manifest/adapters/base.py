@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterator, Protocol, runtime_checkable
 
+from ..core.layout import LayoutIssue
 from ..core.schema import ClinicalRecord, Dataset, RawSession
 
 
@@ -18,6 +19,8 @@ class DatasetAdapter(Protocol):
     def load_clinical(self) -> dict[str, ClinicalRecord]: ...
 
     def clinical_key(self, session: RawSession) -> str: ...
+
+    def check_layout(self) -> list[LayoutIssue]: ...
 
 
 _REGISTRY: dict[Dataset, type] = {}

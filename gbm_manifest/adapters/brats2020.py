@@ -13,6 +13,7 @@ from typing import Iterator
 import pandas as pd
 
 from ..core.exceptions import MissingColumnError
+from ..core.layout import LayoutIssue
 from ..core.schema import ClinicalRecord, Dataset, RawSession, SegConvention
 from .base import register_adapter
 from .normalize import (normalize_eor_categorical, normalize_grade,
@@ -87,3 +88,43 @@ class BraTS2020Adapter:
 
     def clinical_key(self, session: RawSession) -> str:
         return session.patient_id
+
+    def check_layout(self) -> list[LayoutIssue]:
+        issues: list[LayoutIssue] = []
+
+        if not self.root.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="root directory",
+                expected=str(self.root),
+                fix=f"Create or mount the BraTS2020 data directory at {self.root}",
+            ))
+            return issues
+
+        train_dir = self.root / _TRAIN
+        if not train_dir.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="training subdirectory",
+                expected=str(train_dir),
+                fix=f"Extract the BraTS2020 zip directly into {self.root} — "
+                    f"the directory BraTS2020_TrainingData/ must appear as a direct child",
+            ))
+            return issues
+
+        for fname in ("survival_info.csv", "name_mapping.csv"):
+            p = train_dir / fname
+            if not p.exists():
+                issues.append(LayoutIssue(
+                    severity="error", check=fname,
+                    expected=str(p),
+                    fix=f"Ensure {fname} is present inside {train_dir}",
+                ))
+
+        subjects = list(train_dir.glob("BraTS20_Training_*"))
+        if not subjects:
+            issues.append(LayoutIssue(
+                severity="error", check="patient directories",
+                expected=str(train_dir / "BraTS20_Training_*"),
+                fix=f"Extract patient subdirectories into {train_dir}",
+            ))
+
+        return issues

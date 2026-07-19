@@ -14,6 +14,7 @@ from typing import Iterator
 import pandas as pd
 
 from ..core.exceptions import MissingColumnError
+from ..core.layout import LayoutIssue
 from ..core.schema import ClinicalRecord, Dataset, RawSession, SegConvention
 from .base import register_adapter
 from .normalize import (event_from_status, normalize_eor_binary, normalize_idh,
@@ -107,3 +108,43 @@ class UPENNAdapter:
 
     def clinical_key(self, session: RawSession) -> str:
         return session.patient_id
+
+    def check_layout(self) -> list[LayoutIssue]:
+        issues: list[LayoutIssue] = []
+
+        if not self.root.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="root directory",
+                expected=str(self.root),
+                fix=f"Create or mount the UPENN-GBM data directory at {self.root}",
+            ))
+            return issues
+
+        struct_dir = self.root / _STRUCT
+        if not struct_dir.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="images_structural subdirectory",
+                expected=str(struct_dir),
+                fix=f"Extract the UPENN-GBM zip directly into {self.root} — "
+                    f"imaging/NIfTI/images_structural/ must appear as a nested child",
+            ))
+            return issues
+
+        clinical = self.root / "clinical_info.csv"
+        if not clinical.exists():
+            issues.append(LayoutIssue(
+                severity="error", check="clinical_info.csv",
+                expected=str(clinical),
+                fix=f"Place clinical_info.csv directly inside {self.root}",
+            ))
+
+        subjects = list(struct_dir.glob("UPENN-GBM-*_11"))
+        if not subjects:
+            issues.append(LayoutIssue(
+                severity="error", check="baseline session directories (UPENN-GBM-*_11)",
+                expected=str(struct_dir / "UPENN-GBM-*_11"),
+                fix=f"Extract patient session directories into {struct_dir}; "
+                    f"baseline sessions end with _11",
+            ))
+
+        return issues
