@@ -23,9 +23,6 @@ class DedupConfig(BaseModel):
 class CohortConfig(BaseModel):
     os_short_max_days: float = 300.0
     os_mid_max_days: float = 450.0
-    # Datasets assigned partition="external_test"; all others get "train".
-    # Set to [] to disable partitioning (every row gets partition="train").
-    external_test_datasets: list[str] = ["upenn_gbm"]
 
 
 class PipelineConfig(BaseModel):
