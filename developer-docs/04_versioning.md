@@ -100,7 +100,7 @@ pending publisher:
 ```
 PyPI project name : gliostitch
 Owner             : realdavian
-Repository        : gbm-surv-data-pipeline
+Repository        : gliostitch
 Workflow          : release.yml
 Environment       : pypi
 ```
