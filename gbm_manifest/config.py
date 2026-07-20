@@ -4,8 +4,18 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-import yaml
 from pydantic import BaseModel, field_validator
+
+try:
+    import yaml
+except ModuleNotFoundError as exc:  # pragma: no cover - depends on install extras
+    from ._deps import pipeline_extra_required
+
+    # ImportError, not SystemExit: this is library code and a caller may want
+    # to handle it.
+    raise ModuleNotFoundError(
+        pipeline_extra_required("PyYAML", "read config/pipeline.yaml")
+    ) from exc
 
 
 class DatasetConfig(BaseModel):

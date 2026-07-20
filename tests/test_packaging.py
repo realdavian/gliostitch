@@ -87,3 +87,31 @@ def test_gbm_manifest_depends_on_gbm_os_only_in_the_cohort_stage():
         if "gbm_os" in _toplevel_imports(path):
             offenders.append(path.relative_to(REPO).as_posix())
     assert offenders == [], f"top-level gbm_os imports in {offenders}"
+
+
+class TestOptionalDependencyErrors:
+    """Hitting the core/pipeline boundary must say what to install.
+
+    A bare ModuleNotFoundError naming 'typer' tells a user nothing — they did
+    not ask for typer, they asked for a manifest.
+    """
+
+    def test_message_names_the_fix(self):
+        from gbm_manifest._deps import pipeline_extra_required
+
+        msg = pipeline_extra_required("typer", "run the command line")
+        assert "typer" in msg
+        assert "run the command line" in msg
+        assert 'pip install "gbm-manifest[pipeline]"' in msg
+
+    @pytest.mark.parametrize("module, package", [
+        ("gbm_manifest/cli.py", "typer"),
+        ("gbm_manifest/config.py", "yaml"),
+    ])
+    def test_pipeline_only_imports_are_guarded(self, module, package):
+        """Every pipeline-only import must be wrapped, or the core install
+        fails with an unhelpful traceback."""
+        source = (REPO / module).read_text()
+        assert "pipeline_extra_required" in source, (
+            f"{module} imports {package} without an actionable error"
+        )

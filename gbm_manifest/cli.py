@@ -5,7 +5,16 @@ import logging
 from pathlib import Path
 from typing import Annotated, Optional
 
-import typer
+try:
+    import typer
+except ModuleNotFoundError as exc:  # pragma: no cover - depends on install extras
+    from ._deps import pipeline_extra_required
+
+    # SystemExit rather than a traceback: this module is only ever reached
+    # through the console script, where a stack trace helps nobody.
+    raise SystemExit(
+        pipeline_extra_required("typer", "run the gbm-manifest command line")
+    ) from exc
 
 from .config import load_config
 from .logging_setup import setup_logging
