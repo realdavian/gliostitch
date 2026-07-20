@@ -12,7 +12,7 @@ _MESSAGE = """\
 
 The default install ships the cohort-selection layer only. To run the pipeline:
 
-    pip install "gbm-manifest[pipeline]"
+    pip install "gliostitch[pipeline]"
 """
 
 

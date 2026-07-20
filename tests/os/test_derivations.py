@@ -16,7 +16,7 @@ MANIFEST = Path(__file__).parents[2] / "output" / "master_manifest.csv"
 def df():
     if not MANIFEST.exists():
         pytest.skip(
-            f"{MANIFEST} not found — run `gbm-manifest build` to generate it. "
+            f"{MANIFEST} not found — run `gliostitch build` to generate it. "
             "Tests that exercise adapter and pipeline logic run without it."
         )
     config = CohortConfig(data_roots={"brats2020": Path("/tmp")})

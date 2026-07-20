@@ -159,9 +159,9 @@ stay demographic candidates rather than being ruled out.
 ### 8. Verify
 
 ```bash
-gbm-manifest verify-layout          # layout check
+gliostitch verify-layout          # layout check
 pytest tests/manifest               # synthetic-tree contracts
-gbm-manifest audit                  # real discovery count
+gliostitch audit                  # real discovery count
 ```
 
 Reconcile the discovery count against the directory listing before trusting anything
@@ -347,7 +347,7 @@ These are enforced by tests. If one fails, the design is being violated, not the
 ```bash
 pytest                       # 237 tests, ~4 s
 pytest tests/manifest        # pipeline only — no manifest needed
-gbm-manifest build           # end-to-end against real data
+gliostitch build           # end-to-end against real data
 ```
 
 Then confirm what you actually committed:
