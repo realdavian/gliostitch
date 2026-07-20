@@ -40,10 +40,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/realdavian/gbm-surv-data-pipeline"
-Repository = "https://github.com/realdavian/gbm-surv-data-pipeline"
-Changelog = "https://github.com/realdavian/gbm-surv-data-pipeline/blob/main/CHANGELOG.md"
-Issues = "https://github.com/realdavian/gbm-surv-data-pipeline/issues"
+Homepage = "https://github.com/realdavian/gliostitch"
+Repository = "https://github.com/realdavian/gliostitch"
+Changelog = "https://github.com/realdavian/gliostitch/blob/main/CHANGELOG.md"
+Issues = "https://github.com/realdavian/gliostitch/issues"
 
 [project.optional-dependencies]
 # Running the manifest pipeline itself (gbm_manifest).

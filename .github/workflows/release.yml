@@ -6,7 +6,7 @@ name: Release
 #
 # Authentication uses PyPI Trusted Publishing (OpenID Connect) — no API token is
 # stored anywhere. Configure it once at https://pypi.org/manage/account/publishing/
-# with: owner realdavian, repo gbm-surv-data-pipeline, workflow release.yml,
+# with: owner realdavian, repo gliostitch, workflow release.yml,
 # environment pypi.
 
 on:

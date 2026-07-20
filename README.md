@@ -149,6 +149,7 @@ policy, not a manifest edit.
 | [Architecture](developer-docs/01_architecture.md) | How the two packages relate and which one a change belongs in |
 | [Extending](developer-docs/02_extending.md) | Adding a dataset, column, study, criterion or backend |
 | [Design decisions](developer-docs/03_design_decisions.md) | Why it is shaped this way, and what breaks if reversed |
+| [Versioning](developer-docs/04_versioning.md) | Release process, and which number to bump |
 | [Usage notebook](notebooks/01_gbm_os_usage.ipynb) | Worked end-to-end walkthrough |
 
 ---
@@ -157,7 +158,7 @@ policy, not a manifest edit.
 
 ```bash
 source activate.sh
-pytest                   # 237 tests
+pytest                   # 246 tests
 pytest tests/manifest    # pipeline only — runs against a synthetic dataset tree,
                          # no real data needed, ~1 s
 ```
@@ -181,7 +182,7 @@ If you use this in published work, please cite it. GitHub's *Cite this repositor
 reads [`CITATION.cff`](CITATION.cff) and will produce BibTeX or APA for you.
 
 > Lim, Wei Xin (Davian). *gliostitch: reproducible cohort selection over public glioma MRI
-> datasets*, version 0.1.0, 2026. https://github.com/realdavian/gbm-surv-data-pipeline
+> datasets*, version 0.1.0, 2026. https://github.com/realdavian/gliostitch
 
 ORCID: [0009-0005-2683-1528](https://orcid.org/0009-0005-2683-1528)
 
