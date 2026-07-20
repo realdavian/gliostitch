@@ -9,6 +9,17 @@ Definitions are declarative (no predicates) so they can be printed, diffed,
 serialised into a methods section, and versioned when the eligibility rules
 change. Applying one returns an ordinary CohortView, so everything downstream —
 provenance, splitting, backends — works unchanged.
+
+Censoring is deliberately NOT filtered here. The manifest records what is true,
+including censored outcomes, and whether a model may use them is a modelling
+decision made at selection time:
+
+    view = GBM_OS_STUDY.apply(cohort)              # 502, censoring intact
+    deceased = view.select(filters={"os_event": 1})  # 390, complete-case
+
+Dropping censored rows earlier would bake a modelling assumption into the
+cohort and make the alternative unreachable. See docs/01_spec.md §12 M6 for
+the one BraTS case this turns on.
 """
 from __future__ import annotations
 

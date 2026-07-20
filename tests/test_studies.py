@@ -80,3 +80,38 @@ class TestPhase1Delegates:
         source = Path("gbm_manifest/stages/cohort.py").read_text()
         for leaked in ("GTR", "who_grade", "session_index", "has_t1", "_PRIORITY"):
             assert leaked not in source, f"{leaked!r} leaked back into the pipeline"
+
+
+class TestCensoringIsDownstream:
+    """The manifest records censored outcomes; using them is a modelling choice.
+
+    Dropping censored rows inside the study would bake a modelling assumption
+    into the cohort and make the alternative unreachable.
+    """
+
+    def test_study_retains_censored_cases(self, view):
+        df = view.to_frame()
+        assert (df["os_event"] == 0).sum() > 0
+
+    def test_the_one_brats_censored_case_survives(self, view):
+        """BraTS20_Training_084 — GTR, grade IV, 361 days, censored.
+
+        The only censored subject among BraTS's 236 survival rows, and the
+        reason training is 377 rather than the originally recorded 376.
+        """
+        df = view.to_frame()
+        row = df[df["patient_id"] == "BraTS20_Training_084"]
+        assert len(row) == 1
+        assert row.iloc[0]["os_event"] == 0
+        assert row.iloc[0]["os_days"] == 361.0
+
+    def test_deceased_only_is_reachable_downstream(self, view):
+        deceased = view.select(filters={"os_event": 1})
+        df = deceased.to_frame()
+        assert (df["os_event"] == 1).all()
+        assert (df["dataset"] != "upenn_gbm").sum() == 265
+
+    def test_downstream_filter_is_traced(self, view):
+        deceased = view.select(filters={"os_event": 1})
+        reasons = set(deceased.exclusions()["exclusion_reason"].unique())
+        assert "filter:os_event" in reasons
