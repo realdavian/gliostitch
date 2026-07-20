@@ -47,12 +47,18 @@ someone else built, you never install the pipeline.
 
 ### Build the manifest
 
-Point `config/pipeline.yaml` at your dataset roots, then:
+You supply the datasets; the package never redistributes them. Generate a config,
+point it at wherever you extracted each one, then build:
 
 ```bash
+gliostitch init            # writes config/pipeline.yaml to edit
 gliostitch verify-layout   # check the directories before doing any work
 gliostitch build           # → output/master_manifest.csv
 ```
+
+`verify-layout` tells you exactly which directory or CSV is missing and where it
+should be, before any real work starts. Datasets you do not have can be switched
+off with `enabled: false` — the manifest is built from whatever is available.
 
 ### Select a cohort
 
