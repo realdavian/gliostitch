@@ -2,16 +2,24 @@ name: Release Please
 
 # Maintains a standing "release PR" against main. Every push to main updates it
 # with the version bump and changelog entries implied by the Conventional Commit
-# messages since the last release. Merging that PR creates the tag, which is what
-# triggers release.yml to build and publish.
+# messages since the last release. Merging that PR creates the tag and the
+# GitHub release, which this workflow then hands straight to release.yml.
 #
-# The deliberate gap is the release PR itself: it is a human checkpoint. This
-# project's versioning policy says a change that moves a cohort count is MINOR at
-# minimum even when the commit is a `fix:` — no tool can infer that from a commit
-# message, so someone has to look. See developer-docs/04_versioning.md.
+# That hand-off is explicit (workflow_call) rather than relying on the tag
+# push to retrigger release.yml. It can't: GitHub does not fire other
+# workflows for a push made with the default GITHUB_TOKEN, which is what
+# release-please-action uses — deliberate loop prevention on GitHub's part.
+# Before this was wired up, merging the release PR tagged and "released" on
+# GitHub while silently never reaching PyPI, with every step reporting
+# success. v0.1.1 shipped that way; see git history on this file.
 #
-# To force a bump the commit types would not produce, add to the PR body or a
-# commit footer:
+# The release PR itself is still the human checkpoint this project's
+# versioning policy needs: a change that moves a cohort count is MINOR at
+# minimum even when committed as `fix:`, which no tool can infer from a
+# subject line. See developer-docs/04_versioning.md.
+#
+# To force a version the commit types would not produce, add to a commit
+# footer or the release PR body:
 #
 #     Release-As: 0.2.0
 
@@ -20,13 +28,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -42,9 +52,23 @@ jobs:
           PR: ${{ steps.release.outputs.pr }}
         run: |
           if [ "$RELEASED" = "true" ]; then
-            echo "Released **$TAG** — release.yml will now build and publish to PyPI." >> $GITHUB_STEP_SUMMARY
+            echo "Released **$TAG** — handing off to release.yml to publish to PyPI." >> $GITHUB_STEP_SUMMARY
           elif [ -n "$PR" ]; then
             echo "Release PR updated. Merge it to cut a release." >> $GITHUB_STEP_SUMMARY
           else
             echo "No releasable changes since the last tag." >> $GITHUB_STEP_SUMMARY
           fi
+
+  publish:
+    name: hand off to release.yml
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: read
+      id-token: write   # required inside release.yml's publish job (PyPI OIDC)
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
+      # release-please already created the GitHub release for this tag; do
+      # not attempt to create a second one.
+      skip_github_release: true
