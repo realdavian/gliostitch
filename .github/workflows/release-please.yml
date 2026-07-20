@@ -1,0 +1,50 @@
+name: Release Please
+
+# Maintains a standing "release PR" against main. Every push to main updates it
+# with the version bump and changelog entries implied by the Conventional Commit
+# messages since the last release. Merging that PR creates the tag, which is what
+# triggers release.yml to build and publish.
+#
+# The deliberate gap is the release PR itself: it is a human checkpoint. This
+# project's versioning policy says a change that moves a cohort count is MINOR at
+# minimum even when the commit is a `fix:` — no tool can infer that from a commit
+# message, so someone has to look. See developer-docs/04_versioning.md.
+#
+# To force a bump the commit types would not produce, add to the PR body or a
+# commit footer:
+#
+#     Release-As: 0.2.0
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Summarise
+        if: always()
+        env:
+          RELEASED: ${{ steps.release.outputs.release_created }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+          PR: ${{ steps.release.outputs.pr }}
+        run: |
+          if [ "$RELEASED" = "true" ]; then
+            echo "Released **$TAG** — release.yml will now build and publish to PyPI." >> $GITHUB_STEP_SUMMARY
+          elif [ -n "$PR" ]; then
+            echo "Release PR updated. Merge it to cut a release." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No releasable changes since the last tag." >> $GITHUB_STEP_SUMMARY
+          fi

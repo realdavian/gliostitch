@@ -13,7 +13,9 @@ at minimum regardless of how small the code change was — see
 
 ---
 
-## [Unreleased]
+## [0.1.0] - 2026-07-20
+
+First release. Supersedes the pre-release 0.1.0 development series.
 
 ### Cohort-affecting fixes
 
@@ -99,7 +101,6 @@ These change the selected cohort. **Any result computed before them should be re
 
 ---
 
-## [0.1.0]
-
-Initial implementation: four dataset adapters, deduplication, manifest assembly, and the
-`gbm_os` cohort-access layer.
+Releases from 0.2.0 onward are prepared automatically by release-please from
+Conventional Commit messages; see
+[developer-docs/04_versioning.md](developer-docs/04_versioning.md).

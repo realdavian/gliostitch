@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "python",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": false,
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "package-name": "gliostitch",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": ["CITATION.cff"]
+    }
+  },
+  "changelog-sections": [
+    { "type": "cohort", "section": "Cohort-affecting changes — re-run anything computed against a previous release" },
+    { "type": "feat",   "section": "Added" },
+    { "type": "fix",    "section": "Fixed" },
+    { "type": "perf",   "section": "Performance" },
+    { "type": "refactor", "section": "Changed" },
+    { "type": "docs",   "section": "Documentation" },
+    { "type": "test",   "section": "Tests", "hidden": true },
+    { "type": "chore",  "section": "Maintenance", "hidden": true }
+  ]
+}

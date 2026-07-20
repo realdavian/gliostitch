@@ -19,7 +19,7 @@ authors:
     alias: Davian
     orcid: "https://orcid.org/0009-0005-2683-1528"
 
-version: 0.1.0
+version: 0.1.0 # x-release-please-version
 date-released: "2026-07-20"
 license: GPL-3.0-or-later
 repository-code: "https://github.com/realdavian/gliostitch"
