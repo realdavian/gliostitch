@@ -161,3 +161,37 @@ class TestVersioning:
             "CITATION.cff version is stale — update it when bumping the release"
         )
         assert cff["license"] == pyproject["project"]["license"]
+
+
+class TestReleaseAutomation:
+    """release-please drives the version; the three files must not drift."""
+
+    def test_manifest_matches_pyproject(self, pyproject):
+        import json
+
+        manifest = json.loads((REPO / ".release-please-manifest.json").read_text())
+        assert manifest["."] == pyproject["project"]["version"], (
+            "release-please would compute the next version from the wrong base"
+        )
+
+    def test_citation_carries_the_update_annotation(self):
+        """Without the annotation release-please silently leaves CITATION stale."""
+        cff = (REPO / "CITATION.cff").read_text()
+        version_line = next(l for l in cff.splitlines() if l.startswith("version:"))
+        assert "x-release-please-version" in version_line
+
+    def test_cohort_commit_type_is_configured(self):
+        """`cohort:` must map to its own changelog section, per the versioning policy."""
+        import json
+
+        cfg = json.loads((REPO / "release-please-config.json").read_text())
+        types = {s["type"]: s for s in cfg["changelog-sections"]}
+        assert "cohort" in types
+        assert not types["cohort"].get("hidden", False)
+
+    def test_release_type_is_python(self):
+        import json
+
+        cfg = json.loads((REPO / "release-please-config.json").read_text())
+        assert cfg["release-type"] == "python"
+        assert "CITATION.cff" in cfg["packages"]["."]["extra-files"]

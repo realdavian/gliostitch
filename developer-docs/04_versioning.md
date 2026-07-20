@@ -65,30 +65,63 @@ value as `pyproject.toml`.
 
 ---
 
-## Cutting a release
+## Commit messages drive the version
 
-```bash
-# 1. Bump the version in pyproject.toml, per the table above.
-# 2. Move CHANGELOG's [Unreleased] into a dated section for the new version.
-# 3. Update the version and date in CITATION.cff.
-# 4. Merge to main through a PR — direct pushes are blocked.
-# 5. Tag from main:
+Releases are prepared by [release-please](https://github.com/googleapis/release-please)
+from [Conventional Commit](https://www.conventionalcommits.org) messages, so the subject
+line you write determines the next version number.
 
-git checkout main && git pull
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
+```
+feat: add RHUH follow-up sessions      → MINOR
+fix: correct UCSF zero-pad join        → PATCH
+docs: clarify the grade rule           → no release
+cohort: restore 14 GTR cases to UPENN  → MINOR, own changelog section
 ```
 
-The tag triggers `.github/workflows/release.yml`, which:
+`cohort:` is a project-specific type for changes that move emitted values. Use it whenever
+a cohort count, manifest value or duplicate verdict changes — it forces the MINOR bump the
+policy above requires and files the entry under a section telling readers to re-run.
 
-1. **Re-runs the full suite** on 3.11/3.12/3.13 — a tag never publishes untested code
-2. **Refuses to continue if the tag disagrees with `pyproject.toml`**, so a published
-   version is always reproducible from the repository
-3. Builds and runs `twine check --strict`
-4. Publishes to PyPI via **Trusted Publishing** (OIDC — no API token stored anywhere)
-5. Creates the GitHub release, which is what Zenodo watches to mint a DOI
+A breaking change is a `!` after the type, or a `BREAKING CHANGE:` footer.
+
+---
+
+## Cutting a release
+
+Nothing is tagged by hand. The loop is:
+
+1. **Merge work into `main`** through a PR.
+2. **release-please opens or updates a release PR** against `main`, containing the version
+   bump in `pyproject.toml`, the new `CHANGELOG.md` section, and the updated version in
+   `CITATION.cff`.
+3. **Review that PR.** This is the checkpoint that matters — see below.
+4. **Merge it.** That creates the tag.
+5. The tag triggers `release.yml`, which re-runs the full suite on 3.11/3.12/3.13, refuses
+   to continue if the tag disagrees with `pyproject.toml`, builds, runs
+   `twine check --strict`, publishes to PyPI via **Trusted Publishing** (OIDC, no stored
+   token), and creates the GitHub release that Zenodo turns into a DOI.
 
 Nothing publishes from a branch, and nothing publishes without passing tests.
+
+### Why the release PR is not auto-merged
+
+Because no tool can enforce the rule at the top of this document. If a fix changes a cohort
+count but was committed as `fix:`, release-please will propose a PATCH — which this project
+says is wrong. The release PR is where a human catches that.
+
+To override the computed version, add a footer to any commit in the release, or edit the
+release PR:
+
+```
+Release-As: 0.2.0
+```
+
+### Bootstrapping
+
+`0.1.0` was tagged by hand, because its changelog was written before this automation
+existed and regenerating it from commit history would have buried the narrative. Its entry
+in `.release-please-manifest.json` is what tells release-please where to start counting.
+Every release from `0.2.0` is automated.
 
 ---
 
