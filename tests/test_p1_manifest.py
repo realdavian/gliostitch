@@ -51,10 +51,33 @@ class TestOsClassBoundaries:
         (600.0, 2),
     ])
     def test_boundary(self, df, os_days, expected_class):
-        from gbm_os.manifest import _derive_os_class
+        from gbm_os.manifest import derive_os_class
         import pandas as pd
-        result = _derive_os_class(pd.Series([os_days]), short_max=300, mid_max=450)
+        result = derive_os_class(pd.Series([os_days]), short_max=300, mid_max=450)
         assert int(result.iloc[0]) == expected_class
+
+    @pytest.mark.parametrize("missing", [float("nan"), None])
+    def test_missing_survival_is_never_a_band(self, missing):
+        """A null survival time must yield a null class, not 'long'.
+
+        The removed scalar implementation returned 2 for NaN, so a session with
+        no outcome was indistinguishable from a long survivor.
+        """
+        import numpy as np
+        import pandas as pd
+        from gbm_os.manifest import derive_os_class
+
+        result = derive_os_class(pd.Series([missing], dtype="float64"),
+                                 short_max=300, mid_max=450)
+        assert pd.isna(result.iloc[0])
+
+    def test_single_definition_of_os_class(self):
+        """The pipeline must not carry a second implementation."""
+        import gbm_manifest.core.schema as schema
+
+        assert not hasattr(schema, "derive_os_class")
+        assert not hasattr(schema, "is_baseline")
+        assert not hasattr(schema, "is_structural_complete")
 
     def test_null_os_days_gives_null_class(self, df):
         null_rows = df[df["os_days"].isna()]

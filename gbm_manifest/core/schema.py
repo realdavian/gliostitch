@@ -168,22 +168,14 @@ INTENSITY_PRENORMALISED: dict[Dataset, bool] = {
 }
 
 
-def is_structural_complete(has_t1: bool, has_t1ce: bool,
-                           has_t2: bool, has_flair: bool) -> bool:
-    return has_t1 and has_t1ce and has_t2 and has_flair
-
-
-def is_baseline(session_index: int) -> bool:
-    return session_index == 0
-
-
-def derive_os_class(os_days: Optional[float],
-                    short_max: float = 300.0,
-                    mid_max: float = 450.0) -> Optional[int]:
-    if os_days is None:
-        return None
-    if os_days < short_max:
-        return 0
-    if os_days < mid_max:
-        return 1
-    return 2
+# Derivations are deliberately NOT implemented here.
+#
+# This module defines the manifest CONTRACT — what a row is and what a column
+# means. Turning facts into modelling quantities (os_class, is_baseline,
+# is_longitudinal, is_structural_complete) is a selection-layer concern and
+# lives in gbm_os.manifest, once.
+#
+# Second copies used to live here. They drifted: the scalar derive_os_class
+# guarded on None but not NaN, so a session with no survival data was classified
+# as a LONG survivor, while the vectorised version in gbm_os returned null. The
+# tested implementation was not the one the pipeline called.

@@ -32,8 +32,13 @@ def _validate_manifest(df: pd.DataFrame) -> None:
         )
 
 
-def _derive_os_class(os_days: pd.Series, short_max: int, mid_max: int) -> pd.Series:
-    """Classify os_days into 0=short, 1=mid, 2=long; NaN stays NaN."""
+def derive_os_class(os_days: pd.Series, short_max: int, mid_max: int) -> pd.Series:
+    """Classify os_days into 0=short, 1=mid, 2=long; missing stays missing.
+
+    The single definition of the survival banding. A null survival time yields
+    a null class — never a band — so a session with no outcome can never be
+    mistaken for a long survivor.
+    """
     result = pd.cut(
         os_days,
         bins=[-np.inf, short_max, mid_max, np.inf],
@@ -56,7 +61,7 @@ def load_manifest(path: str | Path, config: CohortConfig) -> pd.DataFrame:
     short_max, mid_max = config.os_thresholds
 
     # --- derived columns (DERIVED_NOT_STORED per Phase 1 contract) ---
-    df["os_class"] = _derive_os_class(df["os_days"], short_max, mid_max)
+    df["os_class"] = derive_os_class(df["os_days"], short_max, mid_max)
     df["is_baseline"] = df["session_index"] == 0
 
     counts = df.groupby(["dataset", "patient_id"])["session_index"].transform("count")
