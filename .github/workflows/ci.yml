@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        # [pipeline] pulls typer/pyyaml/pyarrow/nibabel — everything the pipeline
+        # tests need. The four MRI datasets are not available in CI; tests that
+        # require the built manifest skip themselves with a reason.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[pipeline]" pytest
+
+      - name: Run tests
+        run: pytest -v --tb=short
+
+      - name: Report skips
+        if: always()
+        run: |
+          echo "Tests needing the built manifest are skipped in CI." >> $GITHUB_STEP_SUMMARY
+          echo "The pipeline suite runs in full against a synthetic dataset tree." >> $GITHUB_STEP_SUMMARY
+
+  core-install:
+    name: core install stays light
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install core only
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: gbm_os must import and select with no optional deps
+        # Guards the light-core contract: selection and path resolution work
+        # with pandas + numpy + pydantic alone, no typer/pyarrow/nibabel.
+        run: |
+          python - <<'PY'
+          import importlib.util as u
+          for mod in ("typer", "pyarrow", "nibabel", "yaml"):
+              assert u.find_spec(mod) is None, f"{mod} should not be installed by the core"
+
+          import gbm_os
+          from gbm_os.studies import GBM_OS_STUDY
+          print("core import OK:", GBM_OS_STUDY.name, "v" + GBM_OS_STUDY.version)
+          print(GBM_OS_STUDY.describe())
+          PY
+
+  build:
+    name: package builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Show what ships
+        run: |
+          echo '### Wheel contents' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          python -m zipfile -l dist/*.whl >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

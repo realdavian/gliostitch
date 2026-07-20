@@ -1,230 +1,154 @@
-# GBM Survival Data Pipeline
+# gbm-surv-data-pipeline
 
-A reproducible data-engineering pipeline and cohort-access package for multi-site GBM MRI survival research. Produces a single unified `master_manifest.csv` over four public datasets and exposes a composable Python API for cohort selection, cross-validation splitting, and framework-native dataset loading.
+Reproducible cohort selection over four public glioblastoma MRI datasets.
 
-Built for the RO1 grant reproducibility requirement — every cohort selection is derived at load time from immutable manifest facts, not baked into the CSV.
+Assembling a multi-cohort GBM study means reconciling four different directory layouts,
+four clinical CSV conventions, three ID formats, two segmentation label schemes, and an
+unknown number of patients who appear in more than one dataset. Most of that work gets
+done once, in a notebook, and is difficult to reproduce six months later.
 
----
-
-## Datasets
-
-| Dataset | Patients | Sessions | Modalities | Seg convention | Notes |
-|---|---|---|---|---|---|
-| BraTS-2020 | 369 | 369 | T1, T1ce, T2, FLAIR, Seg | BraTS `{0,1,2,4}` | 133 without OS data |
-| RHUH-GBM | 40 | 120 | T1, T1ce, T2, FLAIR, Seg | RHUH `{0,1,2,3}` | Longitudinal; intensities pre-z-scored |
-| UPENN-GBM | 630 | 671 | T1, T1ce, T2, FLAIR, Seg | BraTS `{0,1,2,4}` | External test set; ~36% incomplete |
-| UCSF-PDGM | 501 | 501 | T1, T1ce, T2, FLAIR, Seg | BraTS `{0,1,2,4}` | Includes WHO grade 2/3 |
-
-**Total:** 1,540 patients · 1,661 sessions · 31-column manifest
-
----
-
-## Repository Structure
+This project does it as a pipeline. It emits one manifest of **facts** about every imaging
+session, and a separate layer that turns those facts into a **cohort** according to a
+named, versioned study definition. The split matters: the manifest never changes when the
+research question does.
 
 ```
-gbm-surv-data-pipeline/
-├── gbm_manifest/          # Pipeline: audit → standardise → dedup → manifest
-│   ├── adapters/          # Per-dataset adapters (one file per dataset)
-│   ├── core/schema.py     # Enums, ManifestRow, MANIFEST_COLUMNS — shared contract
-│   ├── stages/            # audit, standardize, deduplicate, cohort, manifest
-│   └── infra/             # fs, hashing, parallel, io
-├── gbm_os/                # Cohort-access package (load, select, split, train)
-│   ├── cohort.py          # Cohort, CohortView, FoldCollection
-│   ├── manifest.py        # load_manifest + schema validation
-│   ├── summary.py         # cohort_summary() statistics report
-│   ├── transforms/        # remap_seg, SegRemapd, foreground_zscore, AgeNormalizer
-│   └── backends/          # torch, monai, torchio
-├── notebooks/
-│   └── 01_gbm_os_usage.ipynb
-├── config/pipeline.yaml
-├── tests/
-└── output/                # master_manifest.csv (generated)
+1661 imaging sessions  →  study definition  →  502 sessions (377 training / 125 external)
+                                                with a reason attached to all 1159 exclusions
 ```
+
+**Datasets:** BraTS-2020 · UCSF-PDGM · UPENN-GBM · RHUH-GBM
+*(not redistributed — you supply the data and configure its location)*
 
 ---
 
-## Installation
-
-**Requirements:** Python 3.11+, [`uv`](https://github.com/astral-sh/uv)
+## Install
 
 ```bash
-git clone https://github.com/realdavian/gbm-surv-data-pipeline
-cd gbm-surv-data-pipeline
-uv sync
-source activate.sh
+pip install gbm-manifest              # selection + path resolution
+pip install "gbm-manifest[pipeline]"  # + build the manifest yourself
+pip install "gbm-manifest[load]"      # + read NIfTI volumes
+pip install "gbm-manifest[monai]"     # + framework backends: monai / torchio / torch
 ```
 
-### Framework backends
-
-MONAI and torchio require PyTorch. Install torch with your CUDA version **before** the extras — otherwise pip resolves the generic CPU build from PyPI.
-
-```bash
-# 1. Install PyTorch with your CUDA version
-pip install torch --index-url https://download.pytorch.org/whl/cu121
-
-# 2. Install framework extras
-pip install -e ".[all]"          # nibabel + monai + torchio
-pip install -e ".[monai]"        # MONAI only
-pip install -e ".[torchio]"      # torchio only
-```
+The core is `pandas`, `numpy` and `pydantic` only. If you just want to query a manifest
+someone else built, you never install the pipeline.
 
 ---
 
-## Building the Manifest
+## Quickstart
 
-Dataset roots are configured in `config/pipeline.yaml`. Raw data is assumed to already be on disk under `/mnt/disk1/datasets/`.
+### Build the manifest
+
+Point `config/pipeline.yaml` at your dataset roots, then:
 
 ```bash
-source activate.sh
-
-# Full pipeline (audit → standardise → dedup → assemble)
-manifest build --config config/pipeline.yaml
-
-# Individual stages
-manifest audit
-manifest standardize
-manifest dedup
-manifest assemble
-manifest validate --manifest output/master_manifest.csv
-
-# Verbose logging
-manifest build --config config/pipeline.yaml --verbose
+gbm-manifest verify-layout   # check the directories before doing any work
+gbm-manifest build           # → output/master_manifest.csv
 ```
 
-Output: `output/master_manifest.csv` — 1,661 rows, 31 columns, byte-identical on re-run.
-
----
-
-## Using the Cohort Package (`gbm_os`)
-
-See **`notebooks/01_gbm_os_usage.ipynb`** for a fully executed end-to-end walkthrough.
-
-### Load
+### Select a cohort
 
 ```python
-from gbm_os import Cohort, CohortConfig
+from gbm_os import Cohort
+from gbm_os.studies import GBM_OS_STUDY
 
-config = CohortConfig(
-    data_roots={
-        "brats2020": "/mnt/disk1/datasets/BraTS-2020",
-        "rhuh_gbm":  "/mnt/disk1/datasets/RHUH-GBM",
-        "upenn_gbm": "/mnt/disk1/datasets/UPENN-GBM",
-        "ucsf_pdgm": "/mnt/disk1/datasets/UCSF-PDGM",
-    },
-    external={"upenn_gbm"},
-    priority=["brats2020", "rhuh_gbm", "ucsf_pdgm"],
+cohort = Cohort.from_manifest(
+    "output/master_manifest.csv",
+    data_roots={"brats2020": "/data/BraTS-2020", ...},
 )
 
-cohort = Cohort.from_manifest("output/master_manifest.csv",
-                               data_roots=config.data_roots,
-                               config=config)
+view = GBM_OS_STUDY.apply(cohort)
+print(len(view))                      # 502
+
+for spec in view:                     # SampleSpec: resolved paths + clinical metadata
+    print(spec.paths["t1ce"], spec.os_days, spec.os_class)
 ```
 
-### Explore
-
-```python
-from gbm_os import cohort_summary
-
-s = cohort_summary(cohort.select())
-s.print()          # demographics, survival, modality completeness, distributions
-
-s.clinical         # pd.DataFrame — patient-level stats per dataset
-s.imaging          # pd.DataFrame — modality presence rates
-s.distributions    # dict[str, pd.DataFrame] — EOR / IDH / MGMT / WHO grade
-
-# Include NIfTI header scan (volume shape + voxel spacing per dataset × modality)
-cohort_summary(cohort.select(datasets=["rhuh_gbm"]), scan_headers=True).spatial
-```
-
-### Select
+Or express criteria directly — all optional, all composable:
 
 ```python
 view = cohort.select(
+    datasets=["ucsf_pdgm", "rhuh_gbm"],
     baseline_only=True,
     require_complete=True,
-    filters={"eor": "GTR", "has_os": True},
-    where=lambda r: r["dataset"] != "ucsf_pdgm" or r["who_grade"] == 4,
+    filters={"eor": "GTR", "who_grade": [4, None]},
+    where=lambda r: r["age"] is not None and r["age"] >= 18,
     resolve_duplicates="drop",
 )
-# → 488 sessions
-
-train_view    = view.select(partition="train")     # 377 — BraTS + RHUH + UCSF
-external_view = view.select(partition="external")  # 111 — UPENN
 ```
 
-### Load volumes
+### Load it
 
 ```python
-# PyTorch / nibabel (raw float32 arrays, no framework dependency beyond nibabel)
-dataset = view.to_torch(include_seg=True)
-item = dataset[0]
-# item["image"]  → np.ndarray [C, H, W, D]  raw voxels
-# item["seg"]    → np.ndarray [1, H, W, D]  RHUH labels already remapped to BraTS {0,1,2,4}
-
-# MONAI (lazy path-based; add SegRemapd after LoadImaged)
-from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
-from gbm_os.transforms import SegRemapd
-
-transforms = Compose([
-    LoadImaged(keys=["t1ce", "seg"]),
-    EnsureChannelFirstd(keys=["t1ce", "seg"]),
-    SegRemapd(seg_key="seg"),   # remaps RHUH 3→4 using seg_convention from the data dict
-])
-monai_ds = view.to_monai(transforms=transforms, include_seg=True)
-
-# torchio (seg eagerly loaded and remapped at Subject construction)
-tio_ds = view.to_torchio(include_seg=True)
-```
-
-### Intensity normalisation
-
-Normalisation is not applied automatically — the package surfaces the `intensity_prenormalised` flag per sample so your pipeline can branch correctly for RHUH (pre-z-scored) vs the other three datasets.
-
-```python
-from gbm_os.transforms import foreground_zscore
-
-spec = next(iter(view))
-image = dataset[0]["image"]   # [C, H, W, D]
-
-normalised = np.stack([
-    foreground_zscore(image[c], intensity_prenormalised=spec.intensity_prenormalised)
-    for c in range(image.shape[0])
-])
-```
-
-### Cross-validation splits
-
-```python
-folds = train_view.split(k=5, seed=42)   # stratified by os_class, grouped by patient_id
-
-for i in range(folds.k):
-    train_ds = folds.fold(i, split="train").to_torch()
-    val_ds   = folds.fold(i, split="val").to_torch()
-```
-
-### Age normalisation (leakage-safe)
-
-```python
-from gbm_os.transforms import AgeNormalizer
-
-norm = AgeNormalizer()
-norm.fit(folds.fold(0, split="train"))           # stats from train only
-train_ages = norm.transform(folds.fold(0, split="train"))
-val_ages   = norm.transform(folds.fold(0, split="val"))   # uses train stats
+ds = view.to_monai()          # or .to_torchio() / .to_torch()
+folds = view.split(k=5, seed=42)      # stratified, patient-grouped, deterministic
+train = folds.fold(0, "train")
 ```
 
 ---
 
-## Manifest Design
+## Why it is built this way
 
-The manifest stores **immutable facts only** — paths, presence flags, raw + normalised clinical values, dedup identity. Modelling choices (`os_class`, `is_baseline`, `partition`, `fold`) are derived at load time and never written to disk.
+**The manifest records facts, not decisions.** One row per imaging session, 31 columns,
+covering identity, paths, modality presence, and normalised clinical values. It does not
+store `os_class`, `is_baseline` or `partition` — those are modelling choices, derived at
+load time. A fact discarded at ingest is unrecoverable; a derivation recomputed on load
+costs milliseconds.
 
-**Deduplication** runs across all baseline sessions (not a filtered cohort). Three tiers:
-1. Demographic fingerprint (candidate generation)
-2. Segmentation mask MD5 (confirmed match)
-3. T1ce MD5 (tiebreaker)
+**A study is a separate, versioned object.** Eligibility criteria, survival thresholds and
+the held-out cohort live in `gbm_os.studies`, declaratively — no lambdas, so a definition
+can be printed, diffed and pasted into a methods section.
 
-Scope is limited to BraTS-anchored pairs — BraTS redistributes UPENN's BraTS-pipeline output, making seg hashes meaningful. UCSF/RHUH cross-pairs used independent intensity pipelines so hash matching is not applied.
+```bash
+$ gbm-manifest studies gbm-os
+gbm-os v2
+Overall-survival classification over baseline preoperative GBM MRI, held out on UPENN-GBM.
+
+Eligibility:
+  - baseline session only (session_index == 0)
+  - all four structural modalities present
+  - eor == 'GTR'
+  - who_grade in [4, None]
+  - has_os == True
+```
+
+Changing the study cannot change the manifest — building under a different one produces a
+byte-identical CSV. That property is enforced by a test.
+
+**Every exclusion is accounted for.** Selection records what each criterion removed, so a
+cohort table is derivable rather than asserted:
+
+```python
+>>> print(view.provenance())
+input                      1661
+baseline_only              1661 →   1521  (−140)
+require_complete           1521 →   1126  (−395)
+filter:eor                 1126 →    526  (−600)
+filter:who_grade            526 →    509  (−17)
+filter:has_os               509 →    503  (−6)
+resolve_duplicates          503 →    502  (−1)
+selected                    502
+
+>>> view.exclusions()      # every dropped session, tagged with its reason
+```
+
+`len(view) + len(view.exclusions())` always equals the input.
+
+**Duplicates are annotated, never deleted.** Patients appearing in more than one dataset
+are flagged with a group id and a confidence level. Which copy to keep is a selection
+policy, not a manifest edit.
+
+---
+
+## Documentation
+
+| | |
+|---|---|
+| [Architecture](developer-docs/01_architecture.md) | How the two packages relate and which one a change belongs in |
+| [Extending](developer-docs/02_extending.md) | Adding a dataset, column, study, criterion or backend |
+| [Design decisions](developer-docs/03_design_decisions.md) | Why it is shaped this way, and what breaks if reversed |
+| [Usage notebook](notebooks/01_gbm_os_usage.ipynb) | Worked end-to-end walkthrough |
 
 ---
 
@@ -232,18 +156,34 @@ Scope is limited to BraTS-anchored pairs — BraTS redistributes UPENN's BraTS-p
 
 ```bash
 source activate.sh
-pytest                  # 237 tests, ~4 s
-pytest tests/manifest   # pipeline only — synthetic data, no manifest needed
-pytest tests/os         # selection layer — reads the built manifest
+pytest                   # 237 tests
+pytest tests/manifest    # pipeline only — runs against a synthetic dataset tree,
+                         # no real data needed, ~1 s
 ```
 
-Developer documentation lives in [`developer-docs/`](developer-docs/00_index.md) —
-architecture, both build specs, and the integration analysis.
+The pipeline suite builds a miniature four-dataset tree on the fly and runs the real
+adapters against it, so join contracts are testable without access to the MRI data. Tests
+that need a built manifest skip themselves with a reason.
 
-### Adding a new dataset
+---
 
-1. Add an adapter in `gbm_manifest/adapters/<dataset>.py` — implement `discover()`, `load_clinical()`, `clinical_key()`
-2. Register it with `@register_adapter(Dataset.<NAME>)`
-3. Import it in `gbm_manifest/adapters/__init__.py`
-4. Add the dataset root to `config/pipeline.yaml`
-5. Add the new `Dataset` enum value and its `seg_convention` / `intensity_prenormalised` entries to `gbm_manifest/core/schema.py` — `gbm_os` picks them up automatically
+## Status
+
+Beta. The cohort figures above are current as of the latest entry in
+[CHANGELOG.md](CHANGELOG.md), which records data-affecting changes separately from code
+changes — a fix that moves a cohort count is breaking for anyone who published against the
+old one.
+
+## Citation
+
+<!-- TODO(release): add CITATION.cff and the Zenodo DOI badge once the repo is public. -->
+
+If you use this in published work, please cite it. Citation metadata will be added with
+the first tagged release.
+
+## Licence
+
+<!-- TODO(release): add LICENSE and state it here. -->
+
+Not yet licensed. Until a licence is added, default copyright applies and no permission to
+use, modify or redistribute is granted.

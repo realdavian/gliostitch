@@ -3,9 +3,36 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
+# TODO(release): confirm the distribution name before first publish — it cannot
+# be reclaimed on PyPI. gbm-manifest / gbm-os / gbm-surv are all available.
 name = "gbm-manifest"
 version = "0.1.0"
+description = "Reproducible cohort selection over four public glioblastoma MRI datasets"
+readme = "README.md"
 requires-python = ">=3.11"
+keywords = [
+    "glioblastoma", "neuro-oncology", "medical-imaging", "mri",
+    "survival-analysis", "reproducibility", "cohort-selection",
+]
+# TODO(release): set the licence before first publish. Once a version is
+# published under a licence, that grant cannot be withdrawn for that version.
+#   license = "GPL-3.0-or-later"
+#   license-files = ["LICENSE"]
+# TODO(release): add authors for citation metadata.
+#   authors = [{ name = "...", email = "..." }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Healthcare Industry",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Typing :: Typed",
+]
+
 # Core: what gbm_os needs to select a cohort and resolve paths. A consumer who
 # only reads the manifest should not be made to install the pipeline's CLI,
 # its parquet writer, or a NIfTI reader.
@@ -14,6 +41,12 @@ dependencies = [
     "numpy>=1.24",
     "pydantic>=2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/realdavian/gbm-surv-data-pipeline"
+Repository = "https://github.com/realdavian/gbm-surv-data-pipeline"
+Changelog = "https://github.com/realdavian/gbm-surv-data-pipeline/blob/main/CHANGELOG.md"
+Issues = "https://github.com/realdavian/gbm-surv-data-pipeline/issues"
 
 [project.optional-dependencies]
 # Running the manifest pipeline itself (gbm_manifest).
@@ -42,6 +75,19 @@ manifest = "gbm_manifest.cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["gbm_manifest", "gbm_os"]
+
+[tool.hatch.build.targets.sdist]
+# What a user downloading the source distribution gets. Developer docs, tests,
+# notebooks and generated output are deliberately excluded — they are part of
+# working on the project, not of using it.
+include = [
+    "gbm_manifest",
+    "gbm_os",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
