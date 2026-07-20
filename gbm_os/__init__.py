@@ -1,5 +1,6 @@
 """gbm_os — GBM cohort-access package (Phase 2)."""
 
+from gbm_manifest._version import __version__
 from gbm_os.cohort import Cohort, CohortView, FoldCollection
 from gbm_os.config import CohortConfig
 from gbm_os.manifest import derive_os_class
@@ -11,5 +12,5 @@ from gbm_os.summary import CohortSummary, cohort_summary
 __all__ = [
     "Cohort", "CohortView", "CohortConfig", "FoldCollection", "SampleSpec",
     "CohortSummary", "cohort_summary", "SelectionTrace", "SelectionStep",
-    "StudyDefinition", "STUDIES", "get_study", "derive_os_class",
+    "StudyDefinition", "STUDIES", "get_study", "derive_os_class", "__version__",
 ]
