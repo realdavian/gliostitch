@@ -8,6 +8,7 @@ import pandas as pd
 
 from gbm_os.config import CohortConfig
 from gbm_os.manifest import load_manifest
+from gbm_os.provenance import SelectionTrace
 from gbm_os.sample import SampleSpec
 from gbm_os.selection import (
     SelectionCriteria,
@@ -89,10 +90,28 @@ class CohortView:
         df: pd.DataFrame,
         data_roots: dict[str, Path],
         config: CohortConfig,
+        trace: Optional[SelectionTrace] = None,
     ) -> None:
         self._df = df.reset_index(drop=True)
         self._data_roots = data_roots
         self._config = config
+        self._trace = trace if trace is not None else SelectionTrace(n_input=len(df))
+
+    # ------------------------------------------------------------------ #
+    # Provenance                                                           #
+    # ------------------------------------------------------------------ #
+
+    def provenance(self) -> SelectionTrace:
+        """How this view was derived: each criterion, and what it removed."""
+        return self._trace
+
+    def exclusions(self) -> pd.DataFrame:
+        """Every row excluded on the way to this view, tagged with the reason.
+
+        Reasons partition the drops: each row is attributed to the first
+        criterion that removed it, so len(exclusions) + len(view) == n_input.
+        """
+        return self._trace.exclusions()
 
     # ------------------------------------------------------------------ #
     # Core access                                                          #
@@ -138,10 +157,11 @@ class CohortView:
             where=where,
             resolve_duplicates=resolve_duplicates,
         )
-        selected = apply_criteria(self._df, criteria, self._config)
+        trace = SelectionTrace()
+        selected = apply_criteria(self._df, criteria, self._config, trace)
         policy = resolve_duplicates or self._config.resolve_duplicates
-        selected = apply_duplicate_policy(selected, policy, self._config)
-        return CohortView(selected, self._data_roots, self._config)
+        selected = apply_duplicate_policy(selected, policy, self._config, trace)
+        return CohortView(selected, self._data_roots, self._config, trace)
 
     # ------------------------------------------------------------------ #
     # Optional: CV splitting                                               #
@@ -257,7 +277,8 @@ class Cohort:
         base = self._df.copy()
         base["_dup_flagged"] = False
 
-        selected = apply_criteria(base, criteria, self._config)
+        trace = SelectionTrace()
+        selected = apply_criteria(base, criteria, self._config, trace)
         policy = resolve_duplicates or self._config.resolve_duplicates
-        selected = apply_duplicate_policy(selected, policy, self._config)
-        return CohortView(selected, self._data_roots, self._config)
+        selected = apply_duplicate_policy(selected, policy, self._config, trace)
+        return CohortView(selected, self._data_roots, self._config, trace)
