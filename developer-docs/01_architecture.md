@@ -145,9 +145,9 @@ view = GBM_OS_STUDY.apply(cohort)          # 502, censoring intact
 deceased = view.select(filters={"os_event": 1})   # 390, complete-case
 ```
 
-Baking it into the study would make the alternative unreachable. See §12 M6 of
-[`internal/01_spec_phase1_manifest.md`](../internal/01_spec_phase1_manifest.md) for the
-single BraTS case this turns on.
+Baking it into the study would make the alternative unreachable. See
+[Reconciliations](03_design_decisions.md#reconciliations) for the single BraTS case this
+turns on.
 
 ---
 
