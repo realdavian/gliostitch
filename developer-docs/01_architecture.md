@@ -146,8 +146,8 @@ deceased = view.select(filters={"os_event": 1})   # 390, complete-case
 ```
 
 Baking it into the study would make the alternative unreachable. See §12 M6 of
-[`02_spec_phase1_manifest.md`](02_spec_phase1_manifest.md) for the single BraTS case this
-turns on.
+[`internal/01_spec_phase1_manifest.md`](../internal/01_spec_phase1_manifest.md) for the
+single BraTS case this turns on.
 
 ---
 

@@ -19,7 +19,7 @@ decision made at selection time:
 
 Dropping censored rows earlier would bake a modelling assumption into the
 cohort and make the alternative unreachable. See §12 M6 of
-developer-docs/02_spec_phase1_manifest.md for the one BraTS case this turns on.
+internal/01_spec_phase1_manifest.md for the one BraTS case this turns on.
 """
 from __future__ import annotations
 
