@@ -1,5 +1,11 @@
 # gliostitch
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21454905.svg)](https://doi.org/10.5281/zenodo.21454905)
+[![PyPI](https://img.shields.io/pypi/v/gliostitch)](https://pypi.org/project/gliostitch/)
+[![Python](https://img.shields.io/pypi/pyversions/gliostitch)](https://pypi.org/project/gliostitch/)
+[![Licence](https://img.shields.io/badge/licence-GPL--3.0--or--later-blue)](LICENSE)
+[![CI](https://github.com/realdavian/gliostitch/actions/workflows/ci.yml/badge.svg)](https://github.com/realdavian/gliostitch/actions/workflows/ci.yml)
+
 Reproducible cohort selection over four public glioma MRI datasets — stitched into one
 manifest of facts, with a study definition layered on top.
 
@@ -182,11 +188,13 @@ If you use this in published work, please cite it. GitHub's *Cite this repositor
 reads [`CITATION.cff`](CITATION.cff) and will produce BibTeX or APA for you.
 
 > Lim, Wei Xin (Davian). *gliostitch: reproducible cohort selection over public glioma MRI
-> datasets*, version 0.1.0, 2026. https://github.com/realdavian/gliostitch
+> datasets*. Zenodo, 2026. https://doi.org/10.5281/zenodo.21454905
+
+**DOI:** [10.5281/zenodo.21454905](https://doi.org/10.5281/zenodo.21454905) — the *concept* DOI, which always
+resolves to the latest version. To pin a specific one, cite its version DOI instead
+(v0.1.0 is [10.5281/zenodo.21454906](https://doi.org/10.5281/zenodo.21454906)).
 
 ORCID: [0009-0005-2683-1528](https://orcid.org/0009-0005-2683-1528)
-
-<!-- TODO(release): add the Zenodo DOI badge once the repo is public and a release is tagged. -->
 
 Please also cite the source datasets — BraTS-2020, UCSF-PDGM, UPENN-GBM and RHUH-GBM each
 have their own citation requirements, and this project redistributes none of them.
