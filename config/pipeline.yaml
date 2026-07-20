@@ -22,6 +22,8 @@ dedup:
   close_age_tol: 0.5
   close_days_tol: 2.0
 
+# Which study the cohort stage emits. Eligibility rules, survival thresholds,
+# the held-out cohort and duplicate priority are properties of the study itself
+# and live in gbm_os/studies.py — run `gbm-manifest studies` to list them.
 cohort:
-  os_short_max_days: 300.0
-  os_mid_max_days: 450.0
+  study: gbm-os

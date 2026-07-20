@@ -32,9 +32,16 @@ class DedupConfig(BaseModel):
         return any({a, b} == set(pair) for pair in self.same_pipeline_pairs)
 
 
-class CohortConfig(BaseModel):
-    os_short_max_days: float = 300.0
-    os_mid_max_days: float = 450.0
+class CohortStageConfig(BaseModel):
+    """Which study the cohort stage should emit.
+
+    Deliberately thin: eligibility rules, survival thresholds, the held-out
+    cohort and duplicate priority are properties of the STUDY and live in
+    gbm_os.studies, so they cannot drift between the pipeline and the
+    selection layer. This only names which one to run.
+    """
+
+    study: str = "gbm-os"
 
 
 class PipelineConfig(BaseModel):
@@ -42,7 +49,7 @@ class PipelineConfig(BaseModel):
     output_dir: Path
     workers: int = 4
     dedup: DedupConfig = DedupConfig()
-    cohort: CohortConfig = CohortConfig()
+    cohort: CohortStageConfig = CohortStageConfig()
 
     @field_validator("output_dir", mode="before")
     @classmethod

@@ -58,7 +58,7 @@ def synthetic_config_path(synthetic_roots, tmp_path_factory) -> Path:
             "close_age_tol": 0.5,
             "close_days_tol": 2.0,
         },
-        "cohort": {"os_short_max_days": 300.0, "os_mid_max_days": 450.0},
+        "cohort": {"study": "gbm-os"},
     }))
     return cfg_path
 

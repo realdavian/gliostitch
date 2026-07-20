@@ -55,23 +55,28 @@ class TestFingerprint:
 
 
 class TestStageInvalidation:
-    def test_changed_threshold_recomputes_cohort(self, synthetic_roots, tmp_path):
-        """A different os_class threshold must not reuse the previous cohort."""
+    def test_changed_study_recomputes_cohort(self, synthetic_roots, tmp_path):
+        """Switching study must invalidate the cached cohort and rewrite it.
+
+        Asserted on the sidecar rather than on the CSV: two studies can select
+        the same rows from a given input, so identical output does not prove
+        the cache was consulted correctly — a refreshed fingerprint does.
+        """
         out = tmp_path / "out"
         cfg_path = tmp_path / "a.yaml"
+        sel = out / "cohort" / "selected.csv"
 
-        _write_cfg(cfg_path, synthetic_roots, out,
-                   cohort={"os_short_max_days": 300.0, "os_mid_max_days": 450.0})
+        _write_cfg(cfg_path, synthetic_roots, out, cohort={"study": "gbm-os"})
         Pipeline(load_config(cfg_path)).build(force=True)
-        first = (out / "cohort" / "selected.csv").read_text()
+        first = json.loads(cache.meta_path(sel).read_text())["fingerprint"]
 
-        # Same output dir, different threshold, force=False — the cohort stage
-        # must notice its cached artifact no longer matches the config.
-        _write_cfg(cfg_path, synthetic_roots, out,
-                   cohort={"os_short_max_days": 100.0, "os_mid_max_days": 200.0})
-        Pipeline(load_config(cfg_path)).build(force=False)
-        second = (out / "cohort" / "selected.csv").read_text()
+        _write_cfg(cfg_path, synthetic_roots, out, cohort={"study": "gbm-os-m6"})
+        pipeline = Pipeline(load_config(cfg_path))
+        assert not cache.is_valid(sel, pipeline._fp_cohort()), \
+            "stale cohort still looked valid after the study changed"
 
+        pipeline.build(force=False)
+        second = json.loads(cache.meta_path(sel).read_text())["fingerprint"]
         assert first != second, "cohort was served from a stale cache"
 
     def test_unchanged_config_reuses_cache(self, synthetic_roots, tmp_path):

@@ -89,7 +89,15 @@ def apply_criteria(
             continue
         col = current[key]
         if isinstance(val, (list, set, tuple)):
-            mask, detail = col.isin(list(val)), f"{key} in {sorted(val)}"
+            # A None inside the collection admits nulls alongside the concrete
+            # values — e.g. who_grade in [4, None] keeps grade-IV cases and
+            # cohorts that record no grade at all (UPENN is GBM by construction).
+            values = list(val)
+            concrete = [v for v in values if v is not None]
+            mask = col.isin(concrete)
+            if any(v is None for v in values):
+                mask |= col.isna()
+            detail = f"{key} in {values}"
         elif val is None:
             mask, detail = col.isna(), f"{key} is null"
         else:

@@ -112,10 +112,11 @@ class Pipeline:
         builder = ManifestBuilder(self.out, fingerprint=self._fp_manifest())
         return builder.run(combined, force=force)
 
-    def run_cohort(self, manifest: pd.DataFrame, force: bool = False) -> pd.DataFrame:
+    def run_cohort(self, force: bool = False) -> pd.DataFrame:
         selector = CohortSelector(self.out, self.cfg.cohort,
+                                  data_roots=self._dataset_roots_map(),
                                   fingerprint=self._fp_cohort())
-        return selector.run(manifest, force=force)
+        return selector.run(self.out / "master_manifest.csv", force=force)
 
     def build(self, force: bool = False) -> pd.DataFrame:
         log.info("=== audit ===")
@@ -127,6 +128,6 @@ class Pipeline:
         log.info("=== manifest ===")
         manifest = self.run_manifest(combined, force=force)
         log.info("=== cohort ===")
-        self.run_cohort(manifest, force=force)
+        self.run_cohort(force=force)
         log.info("=== done ===  manifest: %s", self.out / "master_manifest.csv")
         return manifest

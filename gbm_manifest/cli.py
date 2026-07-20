@@ -147,6 +147,22 @@ def validate(
         typer.echo(f"OK: {len(df)} rows, {len(df.columns)} columns, paths verified.")
 
 
+@app.command()
+def studies(
+    name: Annotated[Optional[str], typer.Argument()] = None,
+):
+    """List the available study definitions, or describe one."""
+    from gbm_os.studies import STUDIES, get_study
+
+    if name is not None:
+        typer.echo(get_study(name).describe())
+        return
+
+    for study in STUDIES.values():
+        typer.echo(f"{study.name:<12} v{study.version}  {study.description}")
+    typer.echo("\nRun `gbm-manifest studies <name>` for the full definition.")
+
+
 @app.command("verify-layout")
 def verify_layout(
     config: Annotated[Path, typer.Option("--config", "-c")] = _DEFAULT_CONFIG,
