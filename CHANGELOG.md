@@ -13,6 +13,13 @@ at minimum regardless of how small the code change was — see
 
 ---
 
+## [0.1.1](https://github.com/realdavian/gliostitch/compare/v0.1.0...v0.1.1) (2026-07-20)
+
+
+### Documentation
+
+* record the Zenodo DOI in the repository ([e329312](https://github.com/realdavian/gliostitch/commit/e3293128377ca5dee7f6e4a076a4273c5d036efb))
+
 ## [0.1.0] - 2026-07-20
 
 First release. Supersedes the pre-release 0.1.0 development series.
