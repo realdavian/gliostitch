@@ -77,7 +77,8 @@ class TestM6Reconstruction:
 class TestPhase1Delegates:
     def test_cohort_stage_owns_no_criteria(self):
         """The pipeline stage must not re-encode eligibility rules."""
-        source = Path("gbm_manifest/stages/cohort.py").read_text()
+        repo = Path(__file__).parents[2]
+        source = (repo / "gbm_manifest" / "stages" / "cohort.py").read_text()
         for leaked in ("GTR", "who_grade", "session_index", "has_t1", "_PRIORITY"):
             assert leaked not in source, f"{leaked!r} leaked back into the pipeline"
 

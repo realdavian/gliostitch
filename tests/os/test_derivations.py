@@ -9,7 +9,7 @@ import pytest
 from gbm_os.config import CohortConfig
 from gbm_os.manifest import load_manifest
 
-MANIFEST = Path(__file__).parent.parent / "output" / "master_manifest.csv"
+MANIFEST = Path(__file__).parents[2] / "output" / "master_manifest.csv"
 
 
 @pytest.fixture(scope="module")

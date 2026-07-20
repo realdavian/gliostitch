@@ -55,5 +55,6 @@ class TestSummaryReporting:
     def test_library_does_not_print(self):
         from pathlib import Path
 
-        source = Path("gbm_os/summary.py").read_text()
+        repo = Path(__file__).parents[2]
+        source = (repo / "gbm_os" / "summary.py").read_text()
         assert "\n        print(" not in source
