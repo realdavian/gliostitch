@@ -22,8 +22,8 @@ authors:
 version: 0.1.0
 date-released: "2026-07-20"
 license: GPL-3.0-or-later
-repository-code: "https://github.com/realdavian/gbm-surv-data-pipeline"
-url: "https://github.com/realdavian/gbm-surv-data-pipeline"
+repository-code: "https://github.com/realdavian/gliostitch"
+url: "https://github.com/realdavian/gliostitch"
 
 keywords:
   - glioma
