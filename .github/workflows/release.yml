@@ -1,25 +1,58 @@
 name: Release
 
-# Publishes to PyPI when a version tag is pushed, e.g.:
+# Builds, tests and publishes a tagged version to PyPI. Two ways in:
 #
-#     git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0
+#   1. A human pushes a tag directly:
+#        git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0
 #
-# Authentication uses PyPI Trusted Publishing (OpenID Connect) — no API token is
-# stored anywhere. Configure it once at https://pypi.org/manage/account/publishing/
-# with: owner realdavian, repo gliostitch, workflow release.yml,
-# environment pypi.
+#   2. release-please.yml calls this workflow directly (`workflow_call`) the
+#      moment it creates a release, passing the tag it just cut.
+#
+# (2) exists because GitHub does not trigger `on: push: tags` for a tag pushed
+# by a workflow using the default GITHUB_TOKEN — that's deliberate loop
+# prevention on GitHub's part, not a bug here, but it means "merge the release
+# PR" would otherwise tag and create a GitHub release while silently never
+# reaching PyPI. v0.1.1 did exactly that before this was added: tagged,
+# released on GitHub, absent from PyPI, with every workflow reporting
+# "success" throughout.
+#
+# Authentication uses PyPI Trusted Publishing (OpenID Connect) — no API token
+# is stored anywhere. Configure it once at
+# https://pypi.org/manage/account/publishing/ with: owner realdavian, repo
+# gliostitch, workflow release.yml, environment pypi.
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and publish, e.g. v0.1.0"
+        required: true
+        type: string
+      skip_github_release:
+        description: "Skip creating the GitHub release (use if one already exists for this tag)"
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      skip_github_release:
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
-  # Never publish something that has not been tested. This duplicates CI rather
-  # than trusting that CI ran on the tagged commit.
+  # Never publish something that has not been tested. This duplicates CI
+  # rather than trusting that CI ran on the tagged commit — and duplicates it
+  # again here rather than trusting the caller, since the caller is sometimes
+  # a bot that cannot itself have run the suite against this exact tag.
   verify:
     name: verify before publishing
     runs-on: ubuntu-latest
@@ -28,6 +61,8 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -42,6 +77,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -50,7 +87,8 @@ jobs:
         # A tag that disagrees with pyproject publishes a version nobody can
         # reproduce from the repository.
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${{ inputs.tag || github.ref_name }}"
+          TAG="${TAG#v}"
           PKG=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
           echo "tag=$TAG  pyproject=$PKG"
           if [ "$TAG" != "$PKG" ]; then
@@ -88,11 +126,16 @@ jobs:
   github-release:
     name: attach artifacts to the GitHub release
     needs: publish
+    # release-please already creates the GitHub release when it cuts the tag;
+    # this job only runs for a manually-pushed tag, where nothing has.
+    if: ${{ inputs.skip_github_release != true }}
     runs-on: ubuntu-latest
     permissions:
       contents: write        # required to create a release
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
       - uses: actions/download-artifact@v4
         with:
           name: dist
@@ -100,9 +143,32 @@ jobs:
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-        # Zenodo watches GitHub releases: once the repo is public and the Zenodo
-        # integration is enabled, this step is what mints the DOI.
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --title "$GITHUB_REF_NAME" \
+          gh release create "$TAG" dist/* \
+            --title "$TAG" \
             --notes "See [CHANGELOG.md](CHANGELOG.md) for what changed in this release."
+
+  confirm:
+    name: confirm PyPI actually has it
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Poll PyPI for the published version
+        # publish reporting "success" means the upload API call returned 200 —
+        # it does not by itself prove the package is retrievable. Confirm it
+        # against the real index rather than trusting the step outcome, since
+        # trusting workflow success is exactly what hid the v0.1.1 gap.
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          for i in $(seq 1 10); do
+            if curl -fsS "https://pypi.org/pypi/gliostitch/$VERSION/json" >/dev/null 2>&1; then
+              echo "Confirmed: gliostitch $VERSION is live on PyPI."
+              exit 0
+            fi
+            echo "Not visible yet (attempt $i/10), waiting..."
+            sleep 15
+          done
+          echo "::error::gliostitch $VERSION did not become visible on PyPI after publish reported success."
+          exit 1

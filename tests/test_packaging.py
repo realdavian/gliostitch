@@ -195,3 +195,90 @@ class TestReleaseAutomation:
         cfg = json.loads((REPO / "release-please-config.json").read_text())
         assert cfg["release-type"] == "python"
         assert "CITATION.cff" in cfg["packages"]["."]["extra-files"]
+
+
+class TestReleasePublishHandoff:
+    """release-please tags and releases using the default GITHUB_TOKEN, and
+    GitHub does not fire `on: push: tags` for a push made with that token —
+    deliberate loop prevention on GitHub's side, not a bug here. v0.1.1 was
+    tagged and released on GitHub while never reaching PyPI because of exactly
+    this: release.yml's only trigger was the tag push.
+
+    release-please.yml must call release.yml directly instead of depending on
+    the tag push to retrigger it. These assertions pin the wiring so a future
+    edit can't silently drop the hand-off and reintroduce the gap.
+    """
+
+    @pytest.fixture(scope="class")
+    def release_please_workflow(self):
+        import yaml
+
+        return yaml.safe_load((REPO / ".github/workflows/release-please.yml").read_text())
+
+    @pytest.fixture(scope="class")
+    def release_workflow(self):
+        import yaml
+
+        return yaml.safe_load((REPO / ".github/workflows/release.yml").read_text())
+
+    def test_release_please_exposes_the_outputs_publish_needs(self, release_please_workflow):
+        outs = release_please_workflow["jobs"]["release-please"]["outputs"]
+        assert "release_created" in outs
+        assert "tag_name" in outs
+        # Root-path (".") components use unprefixed action outputs — no
+        # "<path>--" prefix. Getting this wrong makes the outputs empty and
+        # the hand-off silently never fires again.
+        assert outs["release_created"] == "${{ steps.release.outputs.release_created }}"
+        assert outs["tag_name"] == "${{ steps.release.outputs.tag_name }}"
+
+    def test_publish_job_calls_release_yml_directly(self, release_please_workflow):
+        pub = release_please_workflow["jobs"]["publish"]
+        assert pub["uses"] == "./.github/workflows/release.yml"
+        assert pub["if"] == "needs.release-please.outputs.release_created == 'true'"
+        assert pub["with"]["tag"] == "${{ needs.release-please.outputs.tag_name }}"
+
+    def test_publish_job_skips_the_duplicate_github_release(self, release_please_workflow):
+        # release-please already created the GitHub release for this tag.
+        assert release_please_workflow["jobs"]["publish"]["with"]["skip_github_release"] is True
+
+    def test_publish_job_grants_oidc_for_trusted_publishing(self, release_please_workflow):
+        assert release_please_workflow["jobs"]["publish"]["permissions"]["id-token"] == "write"
+
+    def test_release_yml_accepts_the_handoff(self, release_workflow):
+        # YAML parses the bare `on:` key as boolean True.
+        triggers = release_workflow[True]
+        assert "workflow_call" in triggers
+        call_inputs = triggers["workflow_call"]["inputs"]
+        assert set(call_inputs) == {"tag", "skip_github_release"}
+        assert call_inputs["tag"]["required"] is True
+
+    def test_manual_recovery_path_exists(self, release_workflow):
+        """workflow_dispatch with a tag input, for retroactively publishing a
+        release-please tag that never reached PyPI (as v0.1.1 did)."""
+        triggers = release_workflow[True]
+        dispatch_inputs = triggers["workflow_dispatch"]["inputs"]
+        assert "tag" in dispatch_inputs and dispatch_inputs["tag"]["required"] is True
+        assert "skip_github_release" in dispatch_inputs
+
+    def test_verify_and_build_pin_the_ref_to_the_tag(self, release_workflow):
+        """Without this, a workflow_call run (triggered from a `main`-branch
+        push) would check out `main`'s tip via the default ref rather than the
+        tag it was asked to publish."""
+        for job_name in ("verify", "build"):
+            steps = release_workflow["jobs"][job_name]["steps"]
+            checkout = next(s for s in steps if s.get("uses", "").startswith("actions/checkout"))
+            assert checkout["with"]["ref"] == "${{ inputs.tag || github.ref_name }}"
+
+    def test_github_release_job_is_conditional_on_the_skip_flag(self, release_workflow):
+        assert release_workflow["jobs"]["github-release"]["if"] == \
+            "${{ inputs.skip_github_release != true }}"
+
+    def test_publish_reports_success_only_if_pypi_actually_has_it(self, release_workflow):
+        """Every prior workflow reported success for v0.1.1 while it never
+        reached PyPI. `publish` reporting success only means the upload API
+        call returned 200 — confirm against the real index rather than
+        trusting that."""
+        confirm = release_workflow["jobs"]["confirm"]
+        assert confirm["needs"] == "publish"
+        run_script = confirm["steps"][-1]["run"]
+        assert "pypi.org/pypi/gliostitch" in run_script
