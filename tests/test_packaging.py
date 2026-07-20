@@ -115,3 +115,49 @@ class TestOptionalDependencyErrors:
         assert "pipeline_extra_required" in source, (
             f"{module} imports {package} without an actionable error"
         )
+
+
+class TestVersioning:
+    """One version, declared once, reachable from both packages."""
+
+    def test_packages_agree_with_pyproject(self, pyproject):
+        import gbm_manifest
+        import gbm_os
+
+        declared = pyproject["project"]["version"]
+        assert gbm_manifest.__version__ == declared
+        assert gbm_os.__version__ == declared
+
+    def test_version_is_semver(self, pyproject):
+        import re
+
+        assert re.fullmatch(r"\d+\.\d+\.\d+([-.].+)?",
+                            pyproject["project"]["version"])
+
+    def test_no_duplicate_version_literal_in_source(self, pyproject):
+        """The version must be read from metadata, not restated in code."""
+        declared = pyproject["project"]["version"]
+        for pkg in ("gbm_manifest", "gbm_os"):
+            for path in (REPO / pkg).rglob("*.py"):
+                assert f'"{declared}"' not in path.read_text(), (
+                    f"{path} hardcodes the version — read it from _version instead"
+                )
+
+    def test_schema_version_is_independent(self):
+        """SCHEMA_VERSION versions the manifest format, not the release."""
+        from gbm_manifest.core.schema import SCHEMA_VERSION
+
+        assert isinstance(SCHEMA_VERSION, int)
+
+    def test_licence_is_declared(self, pyproject):
+        assert pyproject["project"]["license"] == "GPL-3.0-or-later"
+        assert (REPO / "LICENSE").exists()
+
+    def test_citation_metadata_matches_release(self, pyproject):
+        import yaml
+
+        cff = yaml.safe_load((REPO / "CITATION.cff").read_text())
+        assert cff["version"] == pyproject["project"]["version"], (
+            "CITATION.cff version is stale — update it when bumping the release"
+        )
+        assert cff["license"] == pyproject["project"]["license"]

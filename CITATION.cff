@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+
+title: "gliostitch: reproducible cohort selection over public glioma MRI datasets"
+abstract: >-
+  gliostitch assembles a single manifest of facts over several public glioma MRI
+  datasets — BraTS-2020, UCSF-PDGM, UPENN-GBM and RHUH-GBM — reconciling their
+  directory layouts, clinical vocabularies and identifier formats, and annotating
+  patients that appear in more than one cohort. Study eligibility is expressed
+  separately as a declarative, versioned definition applied at load time, so the
+  manifest is unchanged by the research question asked of it. Every excluded
+  session is attributed to the criterion that removed it, making the cohort table
+  derivable rather than asserted.
+
+authors:
+  - family-names: Lim
+    given-names: "Wei Xin"
+    alias: Davian
+    orcid: "https://orcid.org/0009-0005-2683-1528"
+
+version: 0.1.0
+date-released: "2026-07-20"
+license: GPL-3.0-or-later
+repository-code: "https://github.com/realdavian/gbm-surv-data-pipeline"
+url: "https://github.com/realdavian/gbm-surv-data-pipeline"
+
+keywords:
+  - glioma
+  - glioblastoma
+  - neuro-oncology
+  - medical imaging
+  - magnetic resonance imaging
+  - survival analysis
+  - cohort selection
+  - reproducibility

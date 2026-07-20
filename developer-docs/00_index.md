@@ -7,6 +7,7 @@ For working on or extending `gbm_manifest` and `gbm_os`.
 | 01 | [Package Architecture](01_architecture.md) | Orienting for the first time, or deciding which package a change belongs in |
 | 02 | [Extending the System](02_extending.md) | Adding a dataset, a column, a study, a criterion, or a backend |
 | 03 | [Design Decisions](03_design_decisions.md) | Something looks odd and you want to know whether it is deliberate |
+| 04 | [Versioning and Releases](04_versioning.md) | Cutting a release, or deciding which number to bump |
 
 **Start with 01.** It states the rule the whole design turns on — *`gbm_manifest` records
 what is true, `gbm_os` decides what to do about it* — and the others assume it.
