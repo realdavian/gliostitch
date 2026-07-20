@@ -67,8 +67,36 @@ class StudyDefinition:
         )
 
     def apply(self, cohort: "Cohort") -> "CohortView":
-        """Select this study's cohort from a loaded Cohort."""
-        view = cohort.select(
+        """Select this study's cohort from a loaded Cohort.
+
+        The study's POLICIES travel with it, not just its criteria. A cohort
+        built without a config carries an empty partition map and priority
+        list, so applying a study to it used to yield a view where
+        `select(partition="external")` returned nothing and duplicate
+        resolution had no ordering to work from — silently, with no error.
+        The view is therefore rebound to a config derived from this study,
+        keeping the cohort's data roots.
+        """
+        from gbm_os.cohort import Cohort
+
+        cfg = self.config(cohort._data_roots)
+        df = cohort._df
+
+        # os_class is derived at load time from whatever thresholds the cohort
+        # was built with. If this study bands survival differently, recompute
+        # rather than silently reporting another study's classes.
+        if tuple(cohort._config.os_thresholds) != tuple(self.os_thresholds):
+            from gbm_os.manifest import derive_os_class
+
+            logger.info("study %s: re-deriving os_class for thresholds %s "
+                        "(cohort was loaded with %s)",
+                        self.name, self.os_thresholds,
+                        tuple(cohort._config.os_thresholds))
+            df = df.copy()
+            df["os_class"] = derive_os_class(df["os_days"], *self.os_thresholds)
+
+        scoped = Cohort(df, cohort._data_roots, cfg)
+        view = scoped.select(
             baseline_only=self.baseline_only,
             require_complete=self.require_complete,
             filters=dict(self.filters),

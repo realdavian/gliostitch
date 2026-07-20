@@ -160,6 +160,26 @@ def validate(
 
 
 @app.command()
+def init(
+    config: Annotated[Path, typer.Option("--config", "-c")] = _DEFAULT_CONFIG,
+    force: Annotated[bool, typer.Option("--force", "-f")] = False,
+):
+    """Write a starter pipeline.yaml to edit."""
+    from .config import write_template
+
+    if config.exists() and not force:
+        typer.echo(f"{config} already exists. Pass --force to overwrite.", err=True)
+        raise typer.Exit(1)
+
+    write_template(config)
+    typer.echo(f"Wrote {config}\n")
+    typer.echo("Next:")
+    typer.echo(f"  1. Edit {config} to point at your dataset directories")
+    typer.echo(f"  2. gliostitch verify-layout -c {config}")
+    typer.echo(f"  3. gliostitch build -c {config}")
+
+
+@app.command()
 def studies(
     name: Annotated[Optional[str], typer.Argument()] = None,
 ):
