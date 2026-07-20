@@ -91,7 +91,7 @@ def synthetic_adapters(synthetic_roots):
 def cohort():
     if not MANIFEST_PATH.exists():
         pytest.skip(
-            f"{MANIFEST_PATH} not found — run `gbm-manifest build` to generate it. "
+            f"{MANIFEST_PATH} not found — run `gliostitch build` to generate it. "
             "Tests that exercise adapter and pipeline logic run without it."
         )
 

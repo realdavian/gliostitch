@@ -50,7 +50,7 @@ These change the selected cohort. **Any result computed before them should be re
 ### Added
 
 - **Study definitions** (`gbm_os.studies`) — eligibility criteria as declarative, versioned
-  objects rather than ad-hoc arguments. `gbm-manifest studies` lists them.
+  objects rather than ad-hoc arguments. `gliostitch studies` lists them.
 - **Selection provenance** (`CohortView.provenance()` / `.exclusions()`) — every criterion
   applied and every row it dropped, with reasons partitioning the drops exactly, so
   `selected + excluded == 1661` always holds.

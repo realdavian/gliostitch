@@ -13,13 +13,16 @@ except ModuleNotFoundError as exc:  # pragma: no cover - depends on install extr
     # SystemExit rather than a traceback: this module is only ever reached
     # through the console script, where a stack trace helps nobody.
     raise SystemExit(
-        pipeline_extra_required("typer", "run the gbm-manifest command line")
+        pipeline_extra_required("typer", "run the gliostitch command line")
     ) from exc
 
 from .config import load_config
 from .logging_setup import setup_logging
 
-app = typer.Typer(help="GBM-OS unified manifest pipeline.")
+app = typer.Typer(
+    help="gliostitch — assemble a reproducible glioma MRI cohort from "
+         "several public datasets."
+)
 log = logging.getLogger(__name__)
 
 _DEFAULT_CONFIG = Path("config/pipeline.yaml")
@@ -169,7 +172,7 @@ def studies(
 
     for study in STUDIES.values():
         typer.echo(f"{study.name:<12} v{study.version}  {study.description}")
-    typer.echo("\nRun `gbm-manifest studies <name>` for the full definition.")
+    typer.echo("\nRun `gliostitch studies <name>` for the full definition.")
 
 
 @app.command("verify-layout")
@@ -207,7 +210,7 @@ def verify_layout(
     if error_count:
         typer.echo(
             f"Summary: {error_count} error(s) found — fix the above before running "
-            "`gbm-manifest build`",
+            "`gliostitch build`",
             err=True,
         )
         raise typer.Exit(1)

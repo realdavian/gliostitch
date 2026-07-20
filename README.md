@@ -1,6 +1,7 @@
-# gbm-surv-data-pipeline
+# gliostitch
 
-Reproducible cohort selection over four public glioblastoma MRI datasets.
+Reproducible cohort selection over four public glioma MRI datasets — stitched into one
+manifest of facts, with a study definition layered on top.
 
 Assembling a multi-cohort GBM study means reconciling four different directory layouts,
 four clinical CSV conventions, three ID formats, two segmentation label schemes, and an
@@ -25,10 +26,10 @@ research question does.
 ## Install
 
 ```bash
-pip install gbm-manifest              # selection + path resolution
-pip install "gbm-manifest[pipeline]"  # + build the manifest yourself
-pip install "gbm-manifest[load]"      # + read NIfTI volumes
-pip install "gbm-manifest[monai]"     # + framework backends: monai / torchio / torch
+pip install gliostitch              # selection + path resolution
+pip install "gliostitch[pipeline]"  # + build the manifest yourself
+pip install "gliostitch[load]"      # + read NIfTI volumes
+pip install "gliostitch[monai]"     # + framework backends: monai / torchio / torch
 ```
 
 The core is `pandas`, `numpy` and `pydantic` only. If you just want to query a manifest
@@ -43,8 +44,8 @@ someone else built, you never install the pipeline.
 Point `config/pipeline.yaml` at your dataset roots, then:
 
 ```bash
-gbm-manifest verify-layout   # check the directories before doing any work
-gbm-manifest build           # → output/master_manifest.csv
+gliostitch verify-layout   # check the directories before doing any work
+gliostitch build           # → output/master_manifest.csv
 ```
 
 ### Select a cohort
@@ -101,7 +102,7 @@ the held-out cohort live in `gbm_os.studies`, declaratively — no lambdas, so a
 can be printed, diffed and pasted into a methods section.
 
 ```bash
-$ gbm-manifest studies gbm-os
+$ gliostitch studies gbm-os
 gbm-os v2
 Overall-survival classification over baseline preoperative GBM MRI, held out on UPENN-GBM.
 
