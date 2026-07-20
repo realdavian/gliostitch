@@ -68,22 +68,35 @@ class BraTS2020Adapter:
             str(r["BraTS_2020_subject_ID"]).strip(): r["Grade"]
             for _, r in names.iterrows()
         }
+        surv_by_id = {str(r["Brats20ID"]).strip(): r for _, r in surv.iterrows()}
+
+        # Build over the UNION of both files. name_mapping.csv grades all 369
+        # subjects; survival_info.csv covers only 236. Iterating survival alone
+        # discarded a known grade for the other 133 — 76 LGG and 57 HGG — leaving
+        # them indistinguishable from each other. Grade is a fact on disk, and the
+        # manifest is a facts superset (§2.2), so it survives regardless of
+        # whether the subject has survival data.
         out: dict[str, ClinicalRecord] = {}
-        for _, r in surv.iterrows():
-            sid = str(r["Brats20ID"]).strip()
-            days, event = parse_survival_days(r["Survival_days"])
+        for sid in sorted(set(grade_by_id) | set(surv_by_id)):
+            r = surv_by_id.get(sid)
             graw = grade_by_id.get(sid)
+            found = r is not None
+
+            days, event = parse_survival_days(r["Survival_days"]) if found else (None, None)
             out[sid] = ClinicalRecord(
                 patient_id=sid,
-                age=to_float(r["Age"]),
+                age=to_float(r["Age"]) if found else None,
                 os_days=days, os_event=event,
                 who_grade=normalize_grade(graw), who_grade_raw=raw_str(graw),
-                eor=normalize_eor_categorical(r["Extent_of_Resection"]),
-                eor_raw=raw_str(r["Extent_of_Resection"]),
+                eor=normalize_eor_categorical(r["Extent_of_Resection"]) if found else None,
+                eor_raw=raw_str(r["Extent_of_Resection"]) if found else None,
                 idh_status=None, mgmt_methylation=None, mgmt_raw=None,
-                codeletion_1p19q=None, clinical_row_found=True,
+                # clinical_row_found tracks presence in survival_info specifically:
+                # a graded subject with no survival row is still OS-less.
+                codeletion_1p19q=None, clinical_row_found=found,
             )
-        log.debug("BraTS2020: loaded %d clinical records", len(out))
+        log.debug("BraTS2020: loaded %d clinical records (%d with survival rows)",
+                  len(out), len(surv_by_id))
         return out
 
     def clinical_key(self, session: RawSession) -> str:

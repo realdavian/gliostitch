@@ -1,7 +1,9 @@
 """Deduplication stage: three-tier demographic → seg_hash → t1ce_hash.
 
-Scope: hash tiers run only on BraTS-anchored pairs (BraTS on one side).
-UCSF/RHUH cross-pairs get demographic-only (independent intensity pipelines).
+Scope: the hash tiers run only on pairs that share a segmentation/intensity
+pipeline (DedupConfig.same_pipeline_pairs — BraTS/UPENN by default). Between
+independently annotated cohorts a hash mismatch is not evidence of anything,
+so those pairs stay demographic candidates instead of being ruled out.
 """
 from __future__ import annotations
 
@@ -20,8 +22,6 @@ from ..core.schema import Dataset
 from ..infra.io import write_csv, write_parquet
 
 log = logging.getLogger(__name__)
-
-_BRATS = Dataset.BRATS2020.value
 
 
 def _str_or_none(v) -> Optional[str]:
@@ -100,10 +100,10 @@ class Deduplicator:
         # Track confirmed groups: key -> group_id
         key_to_group: dict[str, str] = {}
 
-        # Batch hash lookups
+        # Batch hash lookups — only for pairs whose hashes are meaningful.
         hash_jobs: list[tuple[str, str]] = []
         for pair in candidates:
-            if _BRATS in (pair.dataset_a, pair.dataset_b):
+            if self.cfg.shares_pipeline(pair.dataset_a, pair.dataset_b):
                 for pval, root, dt in [
                     (pair.seg_path_a,   pair.root_a, "seg"),
                     (pair.seg_path_b,   pair.root_b, "seg"),
@@ -131,7 +131,10 @@ class Deduplicator:
                         hash_cache[job] = None
 
         for pair in candidates:
-            is_brats_pair = _BRATS in (pair.dataset_a, pair.dataset_b)
+            # A hash comparison is only evidence between cohorts that share an
+            # annotation/intensity pipeline. Elsewhere both a match and a
+            # mismatch are uninformative, so we neither hash nor rule out.
+            is_brats_pair = self.cfg.shares_pipeline(pair.dataset_a, pair.dataset_b)
 
             seg_hash_a = seg_hash_b = t1ce_hash_a = t1ce_hash_b = None
             if is_brats_pair:

@@ -19,6 +19,18 @@ class DedupConfig(BaseModel):
     close_age_tol: float = 0.5
     close_days_tol: float = 2.0
 
+    # Dataset pairs that share a segmentation/intensity pipeline, so a hash
+    # comparison between them is meaningful evidence in BOTH directions.
+    # BraTS-2020 redistributes UPENN's BraTS-pipeline output, which is the only
+    # literal-reuse path across these four cohorts. Everywhere else the cohorts
+    # were annotated and normalised independently, so a hash MISMATCH says
+    # nothing about whether two rows are the same person (spec 01 §9) — such
+    # pairs stay demographic candidates rather than being ruled out.
+    same_pipeline_pairs: list[list[str]] = [["brats2020", "upenn_gbm"]]
+
+    def shares_pipeline(self, a: str, b: str) -> bool:
+        return any({a, b} == set(pair) for pair in self.same_pipeline_pairs)
+
 
 class CohortConfig(BaseModel):
     os_short_max_days: float = 300.0
