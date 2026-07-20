@@ -95,7 +95,7 @@ asserts no eligibility vocabulary appears in the cohort stage, another asserts n
 `gbm_manifest` module imports `gbm_os` at top level.
 
 **Studies are declarative on purpose** — no lambdas, no predicates — so a definition can be
-printed, diffed, versioned, and pasted into a methods section. `gbm-manifest studies gbm-os`
+printed, diffed, versioned, and pasted into a methods section. `gliostitch studies gbm-os`
 prints the cohort you actually ran.
 
 ---

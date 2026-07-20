@@ -27,7 +27,7 @@ training.
   hash evidence scoped to cohorts that share an annotation pipeline
 - Schema enforcement (`MANIFEST_COLUMNS`, column order, null hygiene)
 - Stage caching and invalidation (`infra/cache.py`)
-- Pre-flight layout verification (`gbm-manifest verify-layout`)
+- Pre-flight layout verification (`gliostitch verify-layout`)
 
 **What it deliberately does NOT own:** eligibility criteria, survival thresholds, the
 held-out cohort, duplicate priority, or any other research decision. See
@@ -36,7 +36,7 @@ held-out cohort, duplicate priority, or any other research decision. See
 **Output:** `output/master_manifest.csv` — one row per imaging session (1661 rows,
 31 columns), defined by `MANIFEST_COLUMNS` in `gbm_manifest/core/schema.py`.
 
-**Entrypoint:** CLI — `gbm-manifest build`, or stage-by-stage subcommands.
+**Entrypoint:** CLI — `gliostitch build`, or stage-by-stage subcommands.
 
 ---
 
@@ -124,8 +124,8 @@ A **study** is a declarative, versioned set of eligibility criteria and cohort p
 No predicates, so it can be printed, diffed, and pasted into a methods section.
 
 ```bash
-gbm-manifest studies            # list
-gbm-manifest studies gbm-os     # full definition
+gliostitch studies            # list
+gliostitch studies gbm-os     # full definition
 ```
 
 | Study | Criteria | Cohort |
@@ -283,8 +283,8 @@ pytest tests/os         # selection layer
 ## Pre-flight sequence
 
 ```bash
-gbm-manifest verify-layout   # check dataset directories before starting
-gbm-manifest build           # produce master_manifest.csv + cohort/
+gliostitch verify-layout   # check dataset directories before starting
+gliostitch build           # produce master_manifest.csv + cohort/
 ```
 
 ```python

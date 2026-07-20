@@ -3,11 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-# TODO(release): confirm the distribution name before first publish — it cannot
-# be reclaimed on PyPI. gbm-manifest / gbm-os / gbm-surv are all available.
-name = "gbm-manifest"
+name = "gliostitch"
 version = "0.1.0"
-description = "Reproducible cohort selection over four public glioblastoma MRI datasets"
+description = "Reproducible cohort selection over public glioma MRI datasets"
 readme = "README.md"
 requires-python = ">=3.11"
 keywords = [
@@ -70,8 +68,10 @@ all = [
 ]
 
 [project.scripts]
-gbm-manifest = "gbm_manifest.cli:app"
-manifest = "gbm_manifest.cli:app"
+# One command only. The previous `manifest` alias was far too generic to put on
+# a stranger's PATH — it would shadow or be shadowed by anything else named
+# `manifest`.
+gliostitch = "gbm_manifest.cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["gbm_manifest", "gbm_os"]

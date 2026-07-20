@@ -33,10 +33,10 @@ notebooks/           01_gbm_os_usage.ipynb — worked walkthrough
 ## Quick reference
 
 ```bash
-gbm-manifest verify-layout      # check dataset directories before building
-gbm-manifest build              # produce master_manifest.csv + cohort/
-gbm-manifest studies            # list study definitions
-gbm-manifest studies gbm-os     # describe one
+gliostitch verify-layout      # check dataset directories before building
+gliostitch build              # produce master_manifest.csv + cohort/
+gliostitch studies            # list study definitions
+gliostitch studies gbm-os     # describe one
 
 pytest                          # 237 tests, ~4 s
 pytest tests/manifest           # pipeline only — synthetic data, no manifest needed

@@ -102,7 +102,7 @@ class TestOptionalDependencyErrors:
         msg = pipeline_extra_required("typer", "run the command line")
         assert "typer" in msg
         assert "run the command line" in msg
-        assert 'pip install "gbm-manifest[pipeline]"' in msg
+        assert 'pip install "gliostitch[pipeline]"' in msg
 
     @pytest.mark.parametrize("module, package", [
         ("gbm_manifest/cli.py", "typer"),
