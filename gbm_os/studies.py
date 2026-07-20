@@ -18,8 +18,8 @@ decision made at selection time:
     deceased = view.select(filters={"os_event": 1})  # 390, complete-case
 
 Dropping censored rows earlier would bake a modelling assumption into the
-cohort and make the alternative unreachable. See docs/01_spec.md §12 M6 for
-the one BraTS case this turns on.
+cohort and make the alternative unreachable. See §12 M6 of
+developer-docs/02_spec_phase1_manifest.md for the one BraTS case this turns on.
 """
 from __future__ import annotations
 

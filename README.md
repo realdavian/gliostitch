@@ -232,10 +232,13 @@ Scope is limited to BraTS-anchored pairs — BraTS redistributes UPENN's BraTS-p
 
 ```bash
 source activate.sh
-pytest                  # 150 tests, ~1.5 s
-pytest -v               # verbose
-pytest tests/test_p6_summary.py   # specific file
+pytest                  # 237 tests, ~4 s
+pytest tests/manifest   # pipeline only — synthetic data, no manifest needed
+pytest tests/os         # selection layer — reads the built manifest
 ```
+
+Developer documentation lives in [`developer-docs/`](developer-docs/00_index.md) —
+architecture, both build specs, and the integration analysis.
 
 ### Adding a new dataset
 
