@@ -141,14 +141,19 @@ GBM_OS_STUDY = StudyDefinition(
 )
 
 
+#: The study cohort. Everything else in this module is reconciliation.
+CANONICAL = "gbm-os"
+
+
 M6_RECONSTRUCTION = StudyDefinition(
     name="gbm-os-m6",
     version="2",
     description=(
-        "Spec 01 M6 cohort wording (baseline ∩ complete ∩ GTR ∩ grade-IV ∩ "
-        "dedup-resolved), which omits the has-OS criterion. Reproduces the "
-        "documented 131-session external arm. Kept for reconciliation only — "
-        "GBM_OS_STUDY is the study cohort."
+        "RECONCILIATION ONLY — not the study cohort. Reproduces spec 01 M6's "
+        "original wording, which omitted has-OS and therefore counted 131 "
+        "external sessions. The extra six are UPENN patients with no survival "
+        "annotation: they meet every imaging and surgical criterion but carry "
+        "no label to train on or evaluate against. Use GBM_OS_STUDY."
     ),
     baseline_only=True,
     require_complete=True,

@@ -116,3 +116,44 @@ class TestCensoringIsDownstream:
         deceased = view.select(filters={"os_event": 1})
         reasons = set(deceased.exclusions()["exclusion_reason"].unique())
         assert "filter:os_event" in reasons
+
+
+class TestCanonicalStudy:
+    """gbm-os is the study cohort; gbm-os-m6 exists only to explain an old number."""
+
+    def test_canonical_points_at_gbm_os(self):
+        from gbm_os.studies import CANONICAL
+
+        assert get_study(CANONICAL) is GBM_OS_STUDY
+
+    def test_pipeline_config_uses_the_canonical_study(self):
+        """config/pipeline.yaml must not ship pointing at a reconciliation study."""
+        import yaml
+
+        from gbm_os.studies import CANONICAL
+
+        repo = Path(__file__).parents[2]
+        cfg = yaml.safe_load((repo / "config" / "pipeline.yaml").read_text())
+        assert cfg["cohort"]["study"] == CANONICAL
+
+    def test_reconciliation_study_is_labelled_as_such(self):
+        assert "RECONCILIATION ONLY" in M6_RECONSTRUCTION.description
+
+    def test_the_six_extra_cases_have_no_survival_label(self, cohort):
+        """The whole basis of the decision: they cannot be trained on."""
+        study = set(GBM_OS_STUDY.apply(cohort).to_frame()["global_session_key"])
+        m6 = set(M6_RECONSTRUCTION.apply(cohort).to_frame()["global_session_key"])
+        extra = sorted(m6 - study)
+
+        assert len(extra) == 6
+        rows = cohort.select().to_frame().set_index("global_session_key").loc[extra]
+        assert rows["os_days"].isna().all()
+        assert (rows["dataset"] == "upenn_gbm").all()
+
+    def test_training_arm_is_unaffected_by_the_choice(self, cohort):
+        """The criterion only ever removes UPENN, so training is 377 either way."""
+        def train(study):
+            df = study.apply(cohort).to_frame()
+            return (df["dataset"] != "upenn_gbm").sum()
+
+        assert train(GBM_OS_STUDY) == train(M6_RECONSTRUCTION) == 377
