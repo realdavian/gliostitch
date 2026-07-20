@@ -177,14 +177,24 @@ old one.
 
 ## Citation
 
-<!-- TODO(release): add CITATION.cff and the Zenodo DOI badge once the repo is public. -->
+If you use this in published work, please cite it. GitHub's *Cite this repository* button
+reads [`CITATION.cff`](CITATION.cff) and will produce BibTeX or APA for you.
 
-If you use this in published work, please cite it. Citation metadata will be added with
-the first tagged release.
+> Lim, Wei Xin (Davian). *gliostitch: reproducible cohort selection over public glioma MRI
+> datasets*, version 0.1.0, 2026. https://github.com/realdavian/gbm-surv-data-pipeline
+
+ORCID: [0009-0005-2683-1528](https://orcid.org/0009-0005-2683-1528)
+
+<!-- TODO(release): add the Zenodo DOI badge once the repo is public and a release is tagged. -->
+
+Please also cite the source datasets — BraTS-2020, UCSF-PDGM, UPENN-GBM and RHUH-GBM each
+have their own citation requirements, and this project redistributes none of them.
 
 ## Licence
 
-<!-- TODO(release): add LICENSE and state it here. -->
+[GNU General Public License v3.0 or later](LICENSE).
 
-Not yet licensed. Until a licence is added, default copyright applies and no permission to
-use, modify or redistribute is granted.
+You may use, modify and redistribute this software, including commercially. If you
+distribute a modified version, or software that incorporates this one, that work must also
+be released under the GPL. Running it to produce research results places no obligation on
+your results — only on distributed *software*.

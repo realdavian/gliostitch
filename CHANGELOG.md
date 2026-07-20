@@ -7,7 +7,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Because the output of this project is a research artifact, entries record **what changed
 about the data**, not only what changed about the code. A fix that moves a cohort count is
-a breaking change for anyone who published against the old one.
+a breaking change for anyone who published against the old one, and is released as MINOR
+at minimum regardless of how small the code change was — see
+[developer-docs/04_versioning.md](developer-docs/04_versioning.md).
 
 ---
 
