@@ -96,3 +96,50 @@ class TestReproducibility:
         from gbm_manifest.core.schema import MANIFEST_COLUMNS
 
         assert list(synthetic_manifest.columns) == list(MANIFEST_COLUMNS)
+
+
+class TestStudyChoiceDoesNotReachTheManifest:
+    """Which study is configured must not change a single manifest row.
+
+    The manifest is the facts superset; a study is one interpretation of it.
+    If a study could alter the manifest, the facts would depend on the question
+    being asked and no other study could be run against the same file.
+    """
+
+    def _build(self, roots, out, study):
+        import yaml
+
+        from gbm_manifest.config import load_config
+        from gbm_manifest.pipeline import Pipeline
+
+        cfg_path = out.parent / f"{study}.yaml"
+        cfg_path.write_text(yaml.safe_dump({
+            "datasets": {n: {"root": str(r), "enabled": True}
+                         for n, r in roots.items()},
+            "output_dir": str(out),
+            "workers": 2,
+            "cohort": {"study": study},
+        }))
+        Pipeline(load_config(cfg_path)).build(force=True)
+        return out
+
+    def test_manifest_is_byte_identical_across_studies(self, synthetic_roots, tmp_path):
+        a = self._build(synthetic_roots, tmp_path / "a", "gbm-os")
+        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-m6")
+
+        assert _digest(a / "master_manifest.csv") == _digest(b / "master_manifest.csv")
+
+    def test_only_the_derived_cohort_differs(self, synthetic_roots, tmp_path):
+        """The study must still be doing something — just downstream of the facts."""
+        import pandas as pd
+
+        a = self._build(synthetic_roots, tmp_path / "a", "gbm-os")
+        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-m6")
+
+        rows_a = len(pd.read_csv(a / "master_manifest.csv"))
+        rows_b = len(pd.read_csv(b / "master_manifest.csv"))
+        assert rows_a == rows_b
+
+        # Both studies write a cohort; they are free to disagree about it.
+        assert (a / "cohort" / "selected.csv").exists()
+        assert (b / "cohort" / "selected.csv").exists()
