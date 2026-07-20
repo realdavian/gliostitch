@@ -109,7 +109,13 @@ class TestGBMOSRegression:
 
     Criteria: baseline ∩ complete ∩ GTR ∩ grade-IV[UCSF] ∩ has-OS
     Config: external=UPENN, resolve_duplicates="drop"
-    Expected count: 488 (489 pass criteria, 1 UPENN dup removed)
+    Expected count: 502 (503 pass criteria, 1 UPENN dup removed)
+
+    Was 488 before the UPENN session-keying fix. clinical_info.csv holds one row
+    per session, and 41 patients have both a _11 baseline and a _21 follow-up;
+    keying on the suffix-stripped patient_id let the follow-up row overwrite the
+    baseline, which carried an EOR of "Not Applicable" into 41 baseline sessions.
+    Restoring the per-session key returns 14 GTR cases to the external arm.
     """
 
     def _gbm_os_view(self, cohort):
@@ -123,7 +129,20 @@ class TestGBMOSRegression:
 
     def test_cohort_count(self, cohort):
         view = self._gbm_os_view(cohort)
-        assert len(view) == 488
+        assert len(view) == 502
+
+    def test_external_arm_matches_spec_m6(self, cohort):
+        """Spec 01 M6 omits has-OS from the cohort definition; on that wording
+        the external arm is exactly 131 (132 pass criteria, 1 dup removed)."""
+        view = cohort.select(
+            baseline_only=True,
+            require_complete=True,
+            filters={"eor": "GTR"},
+            where=lambda r: r["dataset"] != "ucsf_pdgm" or r["who_grade"] == 4,
+            resolve_duplicates="drop",
+        )
+        df = view.to_frame()
+        assert (df["dataset"] == "upenn_gbm").sum() == 131
 
     def test_deterministic(self, cohort):
         """Same criteria → same count every time."""

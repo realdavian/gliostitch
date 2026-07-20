@@ -13,7 +13,7 @@ from typing import Iterator
 
 import pandas as pd
 
-from ..core.exceptions import MissingColumnError
+from ..core.exceptions import ClinicalKeyCollision, MissingColumnError
 from ..core.layout import LayoutIssue
 from ..core.schema import ClinicalRecord, Dataset, RawSession, SegConvention
 from .base import register_adapter
@@ -31,8 +31,9 @@ _MODS = {"t1": "T1", "t1ce": "T1GD", "t2": "T2", "flair": "FLAIR"}
 _REQUIRED = {"ID", "Survival_from_surgery_days_UPDATED", "Survival_Status",
              "Age_at_scan_years", "GTR_over90percent", "IDH1", "MGMT"}
 
-# Map session suffix to session_index
+# Map session suffix to session_index, and back
 _SUFFIX_IDX = {"11": 0, "21": 1}
+_IDX_SUFFIX = {v: k for k, v in _SUFFIX_IDX.items()}
 
 
 @register_adapter(Dataset.UPENN_GBM)
@@ -86,12 +87,16 @@ class UPENNAdapter:
 
         out: dict[str, ClinicalRecord] = {}
         for _, r in df.iterrows():
-            cid = str(r["ID"]).strip()  # e.g. UPENN-GBM-00001_11
-            # Strip the _NN suffix to get patient_id (same key as discover)
+            # Key on the FULL id (e.g. UPENN-GBM-00001_11). clinical_info.csv has
+            # one row per session, and 41 patients carry both a _11 baseline and a
+            # _21 follow-up. Keying on the suffix-stripped patient_id collapses
+            # those pairs and lets the follow-up row overwrite the baseline one —
+            # taking the follow-up scan age and an EOR of "Not Applicable" with it.
+            cid = str(r["ID"]).strip()
             parts = cid.rsplit("_", 1)
             pid = parts[0] if len(parts) == 2 and parts[1] in _SUFFIX_IDX else cid
             mraw = r["MGMT"]
-            out[pid] = ClinicalRecord(
+            out[cid] = ClinicalRecord(
                 patient_id=pid,
                 age=to_float(r["Age_at_scan_years"]),
                 os_days=to_float(r["Survival_from_surgery_days_UPDATED"]),
@@ -103,11 +108,20 @@ class UPENNAdapter:
                 mgmt_methylation=normalize_mgmt(mraw), mgmt_raw=raw_str(mraw),
                 codeletion_1p19q=None, clinical_row_found=True,
             )
+        if len(out) != len(df):
+            raise ClinicalKeyCollision(
+                f"UPENN clinical_info.csv: {len(df)} rows collapsed to {len(out)} "
+                "records — the clinical key is not unique per session."
+            )
         log.debug("UPENN: loaded %d clinical records", len(out))
         return out
 
     def clinical_key(self, session: RawSession) -> str:
-        return session.patient_id
+        """Rebuild the per-session CSV id: patient_id + _11 / _21."""
+        suffix = _IDX_SUFFIX.get(session.session_index)
+        if suffix is None:
+            return session.patient_id
+        return f"{session.patient_id}_{suffix}"
 
     def check_layout(self) -> list[LayoutIssue]:
         issues: list[LayoutIssue] = []

@@ -1,0 +1,26 @@
+# Generated pipeline outputs
+output/
+
+# Medical imaging binaries
+*.nii
+*.nii.gz
+*.dcm
+*.mha
+*.mhd
+*.nrrd
+
+# Large array/model files
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.hdf5
+*.pkl
+*.npz
+*.npy
+
+# Pixi virtual environment
+.pixi/
+
+# Seed data directory
+.seed
