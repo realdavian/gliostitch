@@ -40,8 +40,10 @@ class CohortSummary:
     def __str__(self) -> str:
         return _format(self)
 
-    def print(self) -> None:
-        print(str(self))
+    def report(self) -> str:
+        """The formatted report. Library code returns it; the caller decides
+        where it goes — `print(summary.report())` in a notebook, or a log."""
+        return _format(self)
 
 
 def cohort_summary(view: "CohortView", scan_headers: bool = False) -> CohortSummary:

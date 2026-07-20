@@ -12,6 +12,15 @@ from gbm_os.provenance import SelectionTrace
 logger = logging.getLogger(__name__)
 
 
+def _nullsafe_row(row: pd.Series) -> pd.Series:
+    """A copy of `row` with every missing value replaced by None.
+
+    Lets a `where=` predicate use plain Python null checks (`is None`,
+    `or`, `not`) instead of having to know that pandas spells missing as NaN.
+    """
+    return row.where(pd.notna(row), None)
+
+
 @dataclass
 class SelectionCriteria:
     """Composable, all-optional selection knobs passed to Cohort.select()."""
@@ -105,8 +114,13 @@ def apply_criteria(
         step(f"filter:{key}", detail, mask)
 
     if criteria.where is not None:
+        # Nulls are normalised to None before the row reaches the predicate.
+        # pandas represents a missing value as NaN, so the natural Python idiom
+        # `r["os_days"] is not None` is silently always true against a raw row —
+        # the filter looks applied and does nothing.
         step("where", "custom predicate",
-             current.apply(criteria.where, axis=1).astype(bool))
+             current.apply(lambda r: bool(criteria.where(_nullsafe_row(r))),
+                           axis=1))
 
     selected = current.reset_index(drop=True)
     logger.debug("apply_criteria: %d / %d rows selected", len(selected), len(df))
