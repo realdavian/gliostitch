@@ -8,6 +8,7 @@ import pandas as pd
 
 from ..adapters.base import DatasetAdapter
 from ..core.schema import ClinicalRecord, Dataset
+from ..infra import cache
 from ..infra.io import write_parquet
 
 log = logging.getLogger(__name__)
@@ -18,16 +19,18 @@ _NULL_CLINICAL = ClinicalRecord(
 
 
 class LabelStandardizer:
-    def __init__(self, adapters: list[DatasetAdapter], output_dir: Path) -> None:
+    def __init__(self, adapters: list[DatasetAdapter], output_dir: Path,
+                 fingerprint: str = "") -> None:
         self.adapters = {a.name: a for a in adapters}
         self.output_dir = output_dir / "standardized"
+        self.fingerprint = fingerprint
 
     def run(self, inventory: dict[Dataset, pd.DataFrame],
             force: bool = False) -> dict[Dataset, pd.DataFrame]:
         results: dict[Dataset, pd.DataFrame] = {}
         for dataset, df in inventory.items():
             out_path = self.output_dir / f"{dataset.value}.parquet"
-            if not force and out_path.exists():
+            if not force and cache.is_valid(out_path, self.fingerprint):
                 log.info("standardize: loading cached %s", out_path)
                 results[dataset] = pd.read_parquet(out_path)
                 continue
@@ -77,6 +80,7 @@ class LabelStandardizer:
 
             std_df = pd.DataFrame(rows)
             write_parquet(std_df, out_path)
+            cache.record(out_path, self.fingerprint)
             results[dataset] = std_df
             log.info("standardize: wrote %d rows for %s", len(std_df), dataset.value)
 

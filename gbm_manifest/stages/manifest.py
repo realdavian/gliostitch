@@ -7,18 +7,20 @@ from pathlib import Path
 import pandas as pd
 
 from ..core.schema import MANIFEST_COLUMNS
+from ..infra import cache
 from ..infra.io import write_csv
 
 log = logging.getLogger(__name__)
 
 
 class ManifestBuilder:
-    def __init__(self, output_dir: Path) -> None:
+    def __init__(self, output_dir: Path, fingerprint: str = "") -> None:
         self.output_dir = output_dir
+        self.fingerprint = fingerprint
 
     def run(self, combined: pd.DataFrame, force: bool = False) -> pd.DataFrame:
         out_path = self.output_dir / "master_manifest.csv"
-        if not force and out_path.exists():
+        if not force and cache.is_valid(out_path, self.fingerprint):
             log.info("manifest: loading cached %s", out_path)
             return pd.read_csv(out_path)
 
@@ -38,6 +40,7 @@ class ManifestBuilder:
 
         # Ensure clean nulls (no "NaN" strings)
         write_csv(manifest, out_path)
+        cache.record(out_path, self.fingerprint)
         log.info("manifest: wrote %d rows, %d columns to %s",
                  len(manifest), len(manifest.columns), out_path)
         return manifest

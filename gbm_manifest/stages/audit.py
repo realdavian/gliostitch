@@ -9,6 +9,7 @@ import pandas as pd
 
 from ..adapters.base import DatasetAdapter
 from ..core.schema import Dataset, RawSession
+from ..infra import cache
 from ..infra.io import write_parquet
 from ..infra.parallel import thread_map
 
@@ -44,17 +45,18 @@ def _discover_one(adapter: DatasetAdapter) -> list[dict]:
 
 class Auditor:
     def __init__(self, adapters: list[DatasetAdapter], output_dir: Path,
-                 workers: int = 4) -> None:
+                 workers: int = 4, fingerprint: str = "") -> None:
         self.adapters = adapters
         self.output_dir = output_dir / "raw_inventory"
         self.workers = workers
+        self.fingerprint = fingerprint
 
     def run(self, force: bool = False) -> dict[Dataset, pd.DataFrame]:
         results: dict[Dataset, pd.DataFrame] = {}
         pending = []
         for adapter in self.adapters:
             out_path = self.output_dir / f"{adapter.name.value}.parquet"
-            if not force and out_path.exists():
+            if not force and cache.is_valid(out_path, self.fingerprint):
                 log.info("audit: loading cached %s", out_path)
                 results[adapter.name] = pd.read_parquet(out_path)
             else:
@@ -66,7 +68,9 @@ class Auditor:
             )
             for adapter, rows in zip(pending, all_rows):
                 df = pd.DataFrame(rows)
-                write_parquet(df, self.output_dir / f"{adapter.name.value}.parquet")
+                out_path = self.output_dir / f"{adapter.name.value}.parquet"
+                write_parquet(df, out_path)
+                cache.record(out_path, self.fingerprint)
                 results[adapter.name] = df
                 log.info("audit: wrote %d rows for %s", len(df), adapter.name.value)
 

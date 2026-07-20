@@ -19,6 +19,7 @@ import pandas as pd
 
 from ..config import DedupConfig
 from ..core.schema import Dataset
+from ..infra import cache
 from ..infra.io import write_csv, write_parquet
 
 log = logging.getLogger(__name__)
@@ -63,18 +64,20 @@ def _hash_seg_worker(args: tuple[str, str]) -> tuple[str, Optional[str]]:
 
 class Deduplicator:
     def __init__(self, dataset_roots: dict[str, Path], output_dir: Path,
-                 cfg: DedupConfig, workers: int = 4) -> None:
+                 cfg: DedupConfig, workers: int = 4,
+                 fingerprint: str = "") -> None:
         self.dataset_roots = dataset_roots  # dataset_value -> root Path
         self.output_dir = output_dir / "dedup"
         self.cfg = cfg
         self.workers = workers
+        self.fingerprint = fingerprint
 
     def run(self, standardized: dict[Dataset, pd.DataFrame],
             force: bool = False) -> pd.DataFrame:
         decisions_path = self.output_dir / "decisions.csv"
         combined_path = self.output_dir / "combined_annotated.parquet"
 
-        if not force and combined_path.exists():
+        if not force and cache.is_valid(combined_path, self.fingerprint):
             log.info("dedup: loading cached results")
             return pd.read_parquet(combined_path)
 
@@ -223,6 +226,7 @@ class Deduplicator:
                         combined.loc[mask, "dedup_confidence"] = d["dedup_confidence"]
 
         write_parquet(combined, combined_path)
+        cache.record(combined_path, self.fingerprint)
         confirmed = sum(1 for d in decisions if d["verdict"] == "CONFIRMED")
         log.info("dedup: %d candidates, %d confirmed dup pairs, %d groups",
                  len(candidates), confirmed, group_counter)

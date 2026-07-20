@@ -1,0 +1,111 @@
+"""Stage caches must invalidate when the inputs that produced them change.
+
+Testing only for file existence lets an artifact written by an older config or
+an older schema be served indefinitely as if it were current — which is how
+pre-revert cohort output survived a code change unnoticed.
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+import yaml
+
+from gbm_manifest.config import load_config
+from gbm_manifest.infra import cache
+from gbm_manifest.pipeline import Pipeline
+
+
+def _write_cfg(path: Path, roots: dict, out: Path, **overrides) -> Path:
+    body = {
+        "datasets": {n: {"root": str(r), "enabled": True} for n, r in roots.items()},
+        "output_dir": str(out),
+        "workers": 2,
+    }
+    body.update(overrides)
+    path.write_text(yaml.safe_dump(body))
+    return path
+
+
+class TestFingerprint:
+    def test_same_inputs_same_digest(self):
+        assert cache.fingerprint(a=1, b="x") == cache.fingerprint(b="x", a=1)
+
+    def test_different_inputs_differ(self):
+        assert cache.fingerprint(a=1) != cache.fingerprint(a=2)
+
+    def test_missing_sidecar_is_stale(self, tmp_path):
+        art = tmp_path / "thing.csv"
+        art.write_text("data")
+        assert not cache.is_valid(art, "abc")
+
+    def test_roundtrip_is_valid(self, tmp_path):
+        art = tmp_path / "thing.csv"
+        art.write_text("data")
+        cache.record(art, "abc")
+        assert cache.is_valid(art, "abc")
+        assert not cache.is_valid(art, "def")
+
+    def test_corrupt_sidecar_is_stale(self, tmp_path):
+        art = tmp_path / "thing.csv"
+        art.write_text("data")
+        cache.meta_path(art).write_text("{not json")
+        assert not cache.is_valid(art, "abc")
+
+
+class TestStageInvalidation:
+    def test_changed_threshold_recomputes_cohort(self, synthetic_roots, tmp_path):
+        """A different os_class threshold must not reuse the previous cohort."""
+        out = tmp_path / "out"
+        cfg_path = tmp_path / "a.yaml"
+
+        _write_cfg(cfg_path, synthetic_roots, out,
+                   cohort={"os_short_max_days": 300.0, "os_mid_max_days": 450.0})
+        Pipeline(load_config(cfg_path)).build(force=True)
+        first = (out / "cohort" / "selected.csv").read_text()
+
+        # Same output dir, different threshold, force=False — the cohort stage
+        # must notice its cached artifact no longer matches the config.
+        _write_cfg(cfg_path, synthetic_roots, out,
+                   cohort={"os_short_max_days": 100.0, "os_mid_max_days": 200.0})
+        Pipeline(load_config(cfg_path)).build(force=False)
+        second = (out / "cohort" / "selected.csv").read_text()
+
+        assert first != second, "cohort was served from a stale cache"
+
+    def test_unchanged_config_reuses_cache(self, synthetic_roots, tmp_path):
+        out = tmp_path / "out"
+        cfg_path = _write_cfg(tmp_path / "a.yaml", synthetic_roots, out)
+
+        Pipeline(load_config(cfg_path)).build(force=True)
+        stamp = cache.meta_path(out / "master_manifest.csv").read_text()
+
+        Pipeline(load_config(cfg_path)).build(force=False)
+        assert cache.meta_path(out / "master_manifest.csv").read_text() == stamp
+
+    def test_schema_bump_invalidates(self, synthetic_roots, tmp_path, monkeypatch):
+        """An artifact from an older schema version is never reused."""
+        out = tmp_path / "out"
+        cfg_path = _write_cfg(tmp_path / "a.yaml", synthetic_roots, out)
+        Pipeline(load_config(cfg_path)).build(force=True)
+
+        recorded = json.loads(
+            cache.meta_path(out / "master_manifest.csv").read_text())["fingerprint"]
+
+        monkeypatch.setattr("gbm_manifest.pipeline.SCHEMA_VERSION", 999)
+        assert Pipeline(load_config(cfg_path))._fp_manifest() != recorded
+
+    def test_every_stage_writes_a_sidecar(self, synthetic_roots, tmp_path):
+        out = tmp_path / "out"
+        cfg_path = _write_cfg(tmp_path / "a.yaml", synthetic_roots, out)
+        Pipeline(load_config(cfg_path)).build(force=True)
+
+        for artifact in (
+            out / "raw_inventory" / "brats2020.parquet",
+            out / "standardized" / "brats2020.parquet",
+            out / "dedup" / "combined_annotated.parquet",
+            out / "master_manifest.csv",
+            out / "cohort" / "selected.csv",
+        ):
+            assert cache.meta_path(artifact).exists(), f"no sidecar for {artifact.name}"

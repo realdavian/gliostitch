@@ -13,6 +13,7 @@ import pandas as pd
 
 from ..config import CohortConfig
 from ..core.schema import EORCategory, derive_os_class
+from ..infra import cache
 from ..infra.io import write_csv
 
 log = logging.getLogger(__name__)
@@ -27,15 +28,17 @@ _PRIORITY = {
 
 
 class CohortSelector:
-    def __init__(self, output_dir: Path, cfg: CohortConfig) -> None:
+    def __init__(self, output_dir: Path, cfg: CohortConfig,
+                 fingerprint: str = "") -> None:
         self.output_dir = output_dir / "cohort"
         self.cfg = cfg
+        self.fingerprint = fingerprint
 
     def run(self, manifest: pd.DataFrame, force: bool = False) -> pd.DataFrame:
         sel_path = self.output_dir / "selected.csv"
         exc_path = self.output_dir / "exclusions.csv"
 
-        if not force and sel_path.exists():
+        if not force and cache.is_valid(sel_path, self.fingerprint):
             log.info("cohort: loading cached %s", sel_path)
             return pd.read_csv(sel_path)
 
@@ -86,6 +89,7 @@ class CohortSelector:
         log.info("cohort: selected %d sessions", len(df))
 
         write_csv(df, sel_path)
+        cache.record(sel_path, self.fingerprint)
         if exclusions:
             exc_df = pd.concat(exclusions, ignore_index=True)
             write_csv(exc_df, exc_path)

@@ -139,6 +139,15 @@ class ManifestRow:
 
 MANIFEST_COLUMNS: list[str] = [f.name for f in fields(ManifestRow)]
 
+# Bump whenever the MEANING of a stored column changes, even if the column set
+# does not. Cached stage artifacts written under an older version are discarded
+# rather than reused (see infra/cache.py).
+#
+#   2 — UPENN clinical records keyed per session; BraTS grade retained for
+#       subjects absent from survival_info; dedup hash evidence scoped to
+#       same-pipeline pairs.
+SCHEMA_VERSION: int = 2
+
 DERIVED_NOT_STORED: tuple[str, ...] = (
     "os_class", "is_baseline", "is_longitudinal",
     "is_structural_complete", "partition", "fold",
