@@ -157,3 +157,54 @@ class TestCanonicalStudy:
             return (df["dataset"] != "upenn_gbm").sum()
 
         assert train(GBM_OS_STUDY) == train(M6_RECONSTRUCTION) == 377
+
+
+class TestStudyPoliciesTravelWithIt:
+    """Applying a study must carry its policies, not just its criteria.
+
+    A Cohort built without a config has an empty partition map and priority
+    list. Applying a study to it used to produce a view where
+    select(partition="external") returned nothing — silently, with no error,
+    which is exactly the path the README documents.
+    """
+
+    def _bare_cohort(self):
+        from gbm_os import Cohort
+        from tests.conftest import DATA_ROOTS, MANIFEST_PATH
+
+        return Cohort.from_manifest(MANIFEST_PATH, data_roots=DATA_ROOTS)
+
+    def test_partition_works_on_a_config_less_cohort(self, cohort):
+        view = GBM_OS_STUDY.apply(self._bare_cohort())
+        assert len(view.select(partition="external")) == 125
+        assert len(view.select(partition="train")) == 377
+
+    def test_apply_matches_load(self, cohort):
+        """The two documented entry points must agree."""
+        from tests.conftest import DATA_ROOTS, MANIFEST_PATH
+
+        via_apply = GBM_OS_STUDY.apply(self._bare_cohort())
+        via_load = GBM_OS_STUDY.load(MANIFEST_PATH, DATA_ROOTS)
+
+        assert len(via_apply) == len(via_load)
+        for part in ("train", "external"):
+            assert len(via_apply.select(partition=part)) == \
+                   len(via_load.select(partition=part))
+
+    def test_priority_is_carried(self, cohort):
+        view = GBM_OS_STUDY.apply(self._bare_cohort())
+        assert tuple(view._config.priority) == GBM_OS_STUDY.priority
+
+    def test_thresholds_are_redderived_when_they_differ(self, cohort):
+        """A study banding survival differently must not report another
+        study's os_class."""
+        import dataclasses
+
+        wide = dataclasses.replace(GBM_OS_STUDY, name="wide", os_thresholds=(100, 200))
+        default_view = GBM_OS_STUDY.apply(self._bare_cohort())
+        wide_view = wide.apply(self._bare_cohort())
+
+        assert len(default_view) == len(wide_view)          # same eligibility
+        d = default_view.to_frame()["os_class"].value_counts().to_dict()
+        w = wide_view.to_frame()["os_class"].value_counts().to_dict()
+        assert d != w, "os_class should differ under different thresholds"

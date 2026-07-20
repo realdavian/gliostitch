@@ -70,7 +70,68 @@ class PipelineConfig(BaseModel):
         return [Path(d.root).resolve() for d in self.datasets.values()]
 
 
+TEMPLATE = """\
+# gliostitch pipeline configuration.
+#
+# Point each dataset at the directory you extracted it into, then run:
+#     gliostitch verify-layout -c {path}
+#     gliostitch build         -c {path}
+#
+# Set `enabled: false` for any dataset you do not have — the pipeline builds a
+# manifest from whichever subset is available.
+
+datasets:
+  brats2020:
+    root: /path/to/BraTS-2020
+    enabled: true
+  rhuh_gbm:
+    root: /path/to/RHUH-GBM
+    enabled: true
+  upenn_gbm:
+    root: /path/to/UPENN-GBM
+    enabled: true
+  ucsf_pdgm:
+    root: /path/to/UCSF-PDGM
+    enabled: true
+
+# Where the manifest and derived cohort are written.
+output_dir: ./output
+
+# Parallelism for discovery and hashing.
+workers: 8
+
+dedup:
+  demographic_age_tol: 1.0
+  demographic_days_tol: 5.0
+  close_age_tol: 0.5
+  close_days_tol: 2.0
+  # Dataset pairs sharing a segmentation/intensity pipeline, where a hash
+  # comparison is meaningful evidence in both directions. Between independently
+  # annotated cohorts a mismatch proves nothing, so those stay candidates.
+  same_pipeline_pairs:
+    - [brats2020, upenn_gbm]
+
+# Which study the cohort stage emits. Run `gliostitch studies` to list them.
+cohort:
+  study: gbm-os
+"""
+
+
+def write_template(path: Path) -> None:
+    """Write a starter configuration to `path`."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(TEMPLATE.format(path=path))
+
+
 def load_config(path: Path) -> PipelineConfig:
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"No configuration at {path}.\n\n"
+            f"Create a starter one with:\n\n"
+            f"    gliostitch init -c {path}\n\n"
+            f"then edit it to point at your dataset directories."
+        )
     with open(path) as f:
         raw = yaml.safe_load(f)
     return PipelineConfig(**raw)

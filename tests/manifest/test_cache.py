@@ -114,3 +114,37 @@ class TestStageInvalidation:
             out / "cohort" / "selected.csv",
         ):
             assert cache.meta_path(artifact).exists(), f"no sidecar for {artifact.name}"
+
+
+class TestConfigBootstrap:
+    """A stranger installing from PyPI has no config/pipeline.yaml.
+
+    It lives in the repo, not the package, so without a way to generate one the
+    pipeline is unusable outside a git checkout — and the failure was a raw
+    FileNotFoundError traceback.
+    """
+
+    def test_missing_config_explains_how_to_make_one(self, tmp_path):
+        from gbm_manifest.config import load_config
+
+        with pytest.raises(FileNotFoundError, match="gliostitch init"):
+            load_config(tmp_path / "nope.yaml")
+
+    def test_template_is_valid_and_loadable(self, tmp_path):
+        from gbm_manifest.config import load_config, write_template
+
+        path = tmp_path / "config" / "pipeline.yaml"
+        write_template(path)
+        cfg = load_config(path)
+
+        assert set(cfg.datasets) == {"brats2020", "rhuh_gbm", "upenn_gbm", "ucsf_pdgm"}
+        assert cfg.cohort.study == "gbm-os"
+        assert cfg.dedup.shares_pipeline("brats2020", "upenn_gbm")
+        assert not cfg.dedup.shares_pipeline("brats2020", "ucsf_pdgm")
+
+    def test_template_placeholders_are_obvious(self, tmp_path):
+        from gbm_manifest.config import write_template
+
+        path = tmp_path / "pipeline.yaml"
+        write_template(path)
+        assert "/path/to/" in path.read_text(), "placeholder roots must look unset"
