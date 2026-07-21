@@ -13,6 +13,15 @@ at minimum regardless of how small the code change was — see
 
 ---
 
+## [0.1.2](https://github.com/realdavian/gliostitch/compare/v0.1.1...v0.1.2) (2026-07-21)
+
+
+### Fixed
+
+* carry study policies into apply(); add config bootstrap ([6d058ce](https://github.com/realdavian/gliostitch/commit/6d058ce697f6286dd1ff3936ee113b36bc2ac584))
+* hand off publish to release.yml directly instead of relying on a tag-push retrigger ([b6b819e](https://github.com/realdavian/gliostitch/commit/b6b819ebdf3c75084af1a12486ce42cc1d9eef10))
+* publish via workflow_dispatch, not a reusable workflow_call ([ec6bad4](https://github.com/realdavian/gliostitch/commit/ec6bad4e2d0205a83928a3550f32ae7a65743fe7))
+
 ## [0.1.1](https://github.com/realdavian/gliostitch/compare/v0.1.0...v0.1.1) (2026-07-20)
 
 
