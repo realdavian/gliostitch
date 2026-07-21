@@ -198,15 +198,26 @@ class TestReleaseAutomation:
 
 
 class TestReleasePublishHandoff:
-    """release-please tags and releases using the default GITHUB_TOKEN, and
-    GitHub does not fire `on: push: tags` for a push made with that token —
-    deliberate loop prevention on GitHub's side, not a bug here. v0.1.1 was
-    tagged and released on GitHub while never reaching PyPI because of exactly
-    this: release.yml's only trigger was the tag push.
+    """release-please tags and creates the GitHub release using the default
+    GITHUB_TOKEN, and GitHub does not fire `on: push: tags` for a push made
+    with that token — deliberate loop prevention. v0.1.1 was tagged and
+    released on GitHub while never reaching PyPI because of exactly this:
+    release.yml's only trigger was the tag push.
 
-    release-please.yml must call release.yml directly instead of depending on
-    the tag push to retrigger it. These assertions pin the wiring so a future
-    edit can't silently drop the hand-off and reintroduce the gap.
+    The fix has two non-obvious constraints, both learned from a real TestPyPI
+    dry-run and pinned here so a future edit can't silently reintroduce the gap:
+
+      1. release-please.yml DISPATCHES release.yml (workflow_dispatch), which
+         GitHub fires even from GITHUB_TOKEN, rather than relying on the tag
+         push to retrigger it.
+
+      2. It must be a dispatch, NOT a reusable `workflow_call`. PyPI Trusted
+         Publishing rejects publishes from reusable workflows: the OIDC mint
+         succeeds but the PEP 740 attestation upload fails verification, because
+         the token's identity is the reusable workflow rather than a top-level
+         one. Dispatching keeps release.yml top-level (job_workflow_ref ==
+         workflow_ref == release.yml), which both the mint and attestations
+         require.
     """
 
     @pytest.fixture(scope="class")
@@ -231,39 +242,49 @@ class TestReleasePublishHandoff:
         assert outs["release_created"] == "${{ steps.release.outputs.release_created }}"
         assert outs["tag_name"] == "${{ steps.release.outputs.tag_name }}"
 
-    def test_publish_job_calls_release_yml_directly(self, release_please_workflow):
+    def test_publish_job_dispatches_release_yml(self, release_please_workflow):
         pub = release_please_workflow["jobs"]["publish"]
-        assert pub["uses"] == "./.github/workflows/release.yml"
         assert pub["if"] == "needs.release-please.outputs.release_created == 'true'"
-        assert pub["with"]["tag"] == "${{ needs.release-please.outputs.tag_name }}"
-
-    def test_publish_job_skips_the_duplicate_github_release(self, release_please_workflow):
+        # A dispatch, not a reusable call — see the class docstring, reason (2).
+        assert "uses" not in pub
+        run = "\n".join(s.get("run", "") for s in pub["steps"])
+        assert "gh workflow run release.yml" in run
+        assert '-f tag="$TAG"' in run
         # release-please already created the GitHub release for this tag.
-        assert release_please_workflow["jobs"]["publish"]["with"]["skip_github_release"] is True
+        assert "-f skip_github_release=true" in run
+        # $TAG must be the tag release-please just cut.
+        assert pub["steps"][-1]["env"]["TAG"] == "${{ needs.release-please.outputs.tag_name }}"
 
-    def test_publish_job_grants_oidc_for_trusted_publishing(self, release_please_workflow):
-        assert release_please_workflow["jobs"]["publish"]["permissions"]["id-token"] == "write"
+    def test_publish_job_grants_only_dispatch_permission(self, release_please_workflow):
+        # It only needs to *trigger* release.yml. OIDC (id-token) and the
+        # contents:write for the GitHub release are release.yml's own concern
+        # now that it runs top-level — so this job must NOT carry id-token,
+        # and granting it would be a needless widening of the token.
+        perms = release_please_workflow["jobs"]["publish"]["permissions"]
+        assert perms.get("actions") == "write"
+        assert "id-token" not in perms
 
-    def test_release_yml_accepts_the_handoff(self, release_workflow):
+    def test_release_yml_is_top_level_not_reusable(self, release_workflow):
         # YAML parses the bare `on:` key as boolean True.
         triggers = release_workflow[True]
-        assert "workflow_call" in triggers
-        call_inputs = triggers["workflow_call"]["inputs"]
-        assert set(call_inputs) == {"tag", "skip_github_release"}
-        assert call_inputs["tag"]["required"] is True
+        # The crux: NO workflow_call. A reusable call fails PyPI attestation
+        # verification (class docstring, reason 2). It is dispatched instead.
+        assert "workflow_call" not in triggers
+        assert "workflow_dispatch" in triggers
+        assert "push" in triggers
 
-    def test_manual_recovery_path_exists(self, release_workflow):
-        """workflow_dispatch with a tag input, for retroactively publishing a
-        release-please tag that never reached PyPI (as v0.1.1 did)."""
-        triggers = release_workflow[True]
-        dispatch_inputs = triggers["workflow_dispatch"]["inputs"]
-        assert "tag" in dispatch_inputs and dispatch_inputs["tag"]["required"] is True
+    def test_manual_and_automated_runs_share_the_dispatch_input(self, release_workflow):
+        """workflow_dispatch with a required tag input: both the automated
+        dispatch from release-please and a manual recovery run (as v0.1.1
+        needs) go through it."""
+        dispatch_inputs = release_workflow[True]["workflow_dispatch"]["inputs"]
+        assert dispatch_inputs["tag"]["required"] is True
         assert "skip_github_release" in dispatch_inputs
 
     def test_verify_and_build_pin_the_ref_to_the_tag(self, release_workflow):
-        """Without this, a workflow_call run (triggered from a `main`-branch
-        push) would check out `main`'s tip via the default ref rather than the
-        tag it was asked to publish."""
+        """A dispatched run defaults its ref to wherever it was dispatched
+        from; verify/build must check out the tag they were asked to publish,
+        not that default."""
         for job_name in ("verify", "build"):
             steps = release_workflow["jobs"][job_name]["steps"]
             checkout = next(s for s in steps if s.get("uses", "").startswith("actions/checkout"))

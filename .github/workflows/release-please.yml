@@ -3,15 +3,16 @@ name: Release Please
 # Maintains a standing "release PR" against main. Every push to main updates it
 # with the version bump and changelog entries implied by the Conventional Commit
 # messages since the last release. Merging that PR creates the tag and the
-# GitHub release, which this workflow then hands straight to release.yml.
+# GitHub release, which this workflow then dispatches release.yml to publish.
 #
-# That hand-off is explicit (workflow_call) rather than relying on the tag
-# push to retrigger release.yml. It can't: GitHub does not fire other
-# workflows for a push made with the default GITHUB_TOKEN, which is what
-# release-please-action uses — deliberate loop prevention on GitHub's part.
-# Before this was wired up, merging the release PR tagged and "released" on
-# GitHub while silently never reaching PyPI, with every step reporting
-# success. v0.1.1 shipped that way; see git history on this file.
+# The hand-off is an explicit workflow_dispatch (see the publish job) rather
+# than relying on the tag push to retrigger release.yml. It can't: GitHub does
+# not fire tag-push workflows for a push made with the default GITHUB_TOKEN,
+# which is what release-please-action uses — deliberate loop prevention.
+# workflow_dispatch is the documented exception (it always fires), and it keeps
+# release.yml top-level, which PyPI Trusted Publishing requires. Before this
+# was wired up, merging the release PR tagged and "released" on GitHub while
+# silently never reaching PyPI, every step green. v0.1.1 shipped that way.
 #
 # The release PR itself is still the human checkpoint this project's
 # versioning policy needs: a change that moves a cohort count is MINOR at
@@ -52,7 +53,7 @@ jobs:
           PR: ${{ steps.release.outputs.pr }}
         run: |
           if [ "$RELEASED" = "true" ]; then
-            echo "Released **$TAG** — handing off to release.yml to publish to PyPI." >> $GITHUB_STEP_SUMMARY
+            echo "Released **$TAG** — dispatching release.yml to build and publish to PyPI." >> $GITHUB_STEP_SUMMARY
           elif [ -n "$PR" ]; then
             echo "Release PR updated. Merge it to cut a release." >> $GITHUB_STEP_SUMMARY
           else
@@ -60,15 +61,28 @@ jobs:
           fi
 
   publish:
-    name: hand off to release.yml
+    name: dispatch release.yml to publish
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    # Only actions:write — enough to dispatch. The publish itself (OIDC,
+    # contents:write for the GitHub release) is release.yml's own concern; it
+    # runs top-level, with its own permissions, not as a called workflow.
     permissions:
-      contents: read
-      id-token: write   # required inside release.yml's publish job (PyPI OIDC)
-    uses: ./.github/workflows/release.yml
-    with:
-      tag: ${{ needs.release-please.outputs.tag_name }}
-      # release-please already created the GitHub release for this tag; do
-      # not attempt to create a second one.
-      skip_github_release: true
+      actions: write
+    steps:
+      - name: Dispatch release.yml for the tag release-please just cut
+        # workflow_dispatch (not workflow_call): it always fires even from
+        # GITHUB_TOKEN, and it keeps release.yml top-level so PyPI Trusted
+        # Publishing accepts it (a reusable workflow_call fails attestation
+        # verification). skip_github_release: release-please already made the
+        # GitHub release for this tag.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          gh workflow run release.yml \
+            --repo "${{ github.repository }}" \
+            --ref "$TAG" \
+            -f tag="$TAG" \
+            -f skip_github_release=true
