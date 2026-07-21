@@ -5,16 +5,23 @@ name: Release
 #   1. A human pushes a tag directly:
 #        git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0
 #
-#   2. release-please.yml calls this workflow directly (`workflow_call`) the
+#   2. release-please.yml DISPATCHES this workflow (workflow_dispatch) the
 #      moment it creates a release, passing the tag it just cut.
 #
-# (2) exists because GitHub does not trigger `on: push: tags` for a tag pushed
-# by a workflow using the default GITHUB_TOKEN — that's deliberate loop
-# prevention on GitHub's part, not a bug here, but it means "merge the release
-# PR" would otherwise tag and create a GitHub release while silently never
-# reaching PyPI. v0.1.1 did exactly that before this was added: tagged,
-# released on GitHub, absent from PyPI, with every workflow reporting
-# "success" throughout.
+# (2) is a dispatch, not a reliance on `on: push: tags`, because GitHub does
+# not fire tag-push workflows for a tag pushed with the default GITHUB_TOKEN
+# (deliberate loop prevention) — which is exactly how v0.1.1 got tagged and
+# "released" on GitHub while silently never reaching PyPI, every workflow
+# green. workflow_dispatch is GitHub's documented exception: it always creates
+# a run even when invoked with GITHUB_TOKEN.
+#
+# It is a dispatch rather than a reusable `workflow_call` for a second reason:
+# PyPI Trusted Publishing rejects publishes from reusable workflows (the
+# uploaded PEP 740 attestations fail verification — the token's identity is the
+# reusable workflow, not a top-level one). Dispatching keeps this workflow
+# TOP-LEVEL, so job_workflow_ref == workflow_ref == release.yml and both the
+# OIDC mint and the attestations verify. See docs.pypi.org/trusted-publishers/
+# troubleshooting/#reusable-workflows-on-github.
 #
 # Authentication uses PyPI Trusted Publishing (OpenID Connect) — no API token
 # is stored anywhere. Configure it once at
@@ -32,15 +39,6 @@ on:
         type: string
       skip_github_release:
         description: "Skip creating the GitHub release (use if one already exists for this tag)"
-        required: false
-        type: boolean
-        default: false
-  workflow_call:
-    inputs:
-      tag:
-        required: true
-        type: string
-      skip_github_release:
         required: false
         type: boolean
         default: false
