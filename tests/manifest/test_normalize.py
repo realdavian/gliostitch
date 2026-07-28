@@ -131,6 +131,22 @@ class TestNormalizeEorCategorical:
     def test_unknown(self):
         assert normalize_eor_categorical("") == EORCategory.UNKNOWN
 
+    def test_ntr(self):
+        """RHUH records near-total resection as a bare NTR."""
+        assert normalize_eor_categorical("NTR") == EORCategory.NTR
+
+    def test_near_total_spelled_out(self):
+        assert normalize_eor_categorical("Near Total Resection") == EORCategory.NTR
+        assert normalize_eor_categorical("near-total") == EORCategory.NTR
+
+    def test_ntr_not_matched_inside_a_word(self):
+        """'ntr' is a substring of ordinary words — it must not win on one."""
+        assert normalize_eor_categorical("contrast-enhancing residual") != EORCategory.NTR
+
+    def test_ntr_does_not_shadow_gtr_or_str(self):
+        assert normalize_eor_categorical("GTR") == EORCategory.GTR
+        assert normalize_eor_categorical("Subtotal") == EORCategory.STR
+
 
 # --- normalize_eor_binary (UPENN) --------------------------------------------
 class TestNormalizeEorBinary:

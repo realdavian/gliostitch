@@ -169,6 +169,41 @@ GBM_OS_STUDY = StudyDefinition(
 )
 
 
+GBM_OS_PREOP_STUDY = StudyDefinition(
+    name="gbm-os-preop",
+    version="3",
+    description=(
+        "Overall-survival classification over baseline preoperative GBM MRI, "
+        "held out on UPENN-GBM. Eligibility uses no post-baseline variable: "
+        "extent of resection is recorded, never required."
+    ),
+    baseline_only=True,
+    require_complete=True,
+    filters={
+        # No `eor` criterion, and that absence is the point of this study.
+        #
+        # v2 requires eor == GTR. Extent of resection is a *treatment* — it
+        # happens after the scan the model predicts from — and it is partly
+        # determined by the very imaging phenotype being modelled: tumours are
+        # biopsied rather than resected because of where and how they present.
+        # Selecting on it therefore conditions on a descendant of the predictor
+        # and leaves a cohort no one can identify prospectively. At inference
+        # time nobody knows who will get a gross-total resection.
+        #
+        # who_grade stays: grade is a property the tumour already has when it
+        # is scanned, which histopathology later confirms. Dropping it would
+        # admit UCSF grade II/III glioma and change the disease under study,
+        # which is a different decision from removing a treatment variable.
+        "who_grade": [4, None],
+        "has_os": True,
+    },
+    os_thresholds=(300, 450),
+    external_datasets=frozenset({"upenn_gbm"}),
+    priority=_PRIORITY,
+    resolve_duplicates="drop",
+)
+
+
 #: The study cohort. Everything else in this module is reconciliation.
 CANONICAL = "gbm-os"
 
@@ -195,6 +230,7 @@ M6_RECONSTRUCTION = StudyDefinition(
 
 STUDIES: dict[str, StudyDefinition] = {
     GBM_OS_STUDY.name: GBM_OS_STUDY,
+    GBM_OS_PREOP_STUDY.name: GBM_OS_PREOP_STUDY,
     M6_RECONSTRUCTION.name: M6_RECONSTRUCTION,
 }
 

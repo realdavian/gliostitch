@@ -9,6 +9,7 @@ from ..core.schema import EORCategory
 
 _ALIVE_RE = re.compile(r"aliv", re.IGNORECASE)
 _INT_RE = re.compile(r"-?\d+")
+_NTR_RE = re.compile(r"\bntr\b|near[\s-]*total")
 _NULL_TOKENS = {"", "na", "nan", "n/a", "none", "null", "not available", "unknown", "indeterminate"}
 
 
@@ -104,10 +105,16 @@ def normalize_grade(raw) -> Optional[int]:
 
 
 def normalize_eor_categorical(raw) -> EORCategory:
-    """GTR/STR/biopsy strings (BraTS, RHUH, UCSF)."""
+    """GTR/NTR/STR/biopsy strings (BraTS, RHUH, UCSF)."""
     if _blank(raw):
         return EORCategory.UNKNOWN
     s = str(raw).strip().lower()
+    # NTR is checked first and on a word boundary: "ntr" is a substring of
+    # ordinary words ("contrast"), and RHUH records near-total resection as a
+    # bare "NTR". Falling through to UNKNOWN would record a known extent as
+    # missing and silently inflate the unknown stratum.
+    if _NTR_RE.search(s):
+        return EORCategory.NTR
     if "gtr" in s or "gross" in s:
         return EORCategory.GTR
     if "str" in s or "subtotal" in s:
