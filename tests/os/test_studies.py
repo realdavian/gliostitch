@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from gbm_os.studies import GBM_OS_STUDY, M6_RECONSTRUCTION, STUDIES, get_study
+from gbm_os.studies import (
+    GBM_OS_PREOP_STUDY,
+    GBM_OS_STUDY,
+    M6_RECONSTRUCTION,
+    STUDIES,
+    get_study,
+)
 
 
 class TestRegistry:
@@ -72,6 +78,56 @@ class TestM6Reconstruction:
         extra = cohort.select().to_frame().set_index("global_session_key").loc[
             sorted(m6 - study)]
         assert extra["os_days"].isna().all()
+
+
+@pytest.fixture(scope="module")
+def preop_view(cohort):
+    return GBM_OS_PREOP_STUDY.apply(cohort)
+
+
+class TestGBMOSPreopStudy:
+    """v3 removes the one eligibility criterion that is a post-baseline event."""
+
+    def test_selected_count(self, preop_view):
+        assert len(preop_view) == 881
+
+    def test_partitions(self, preop_view):
+        assert len(preop_view.select(partition="train")) == 677
+        assert len(preop_view.select(partition="external")) == 204
+
+    def test_eor_is_not_an_eligibility_criterion(self):
+        assert "eor" not in GBM_OS_PREOP_STUDY.filters
+
+    def test_admits_every_extent_of_resection(self, preop_view):
+        """Including the ones v2 drops — biopsy-only above all."""
+        present = set(preop_view.to_frame()["eor"].dropna().unique())
+        assert {"GTR", "STR", "biopsy", "non_GTR", "unknown"} <= present
+
+    def test_v2_cohort_is_the_gtr_stratum_of_v3(self, cohort, preop_view):
+        """The two studies must nest, so v2 is reachable as a v3 sub-analysis.
+
+        This is what makes 'primary on 881, sensitivity on the GTR stratum'
+        a single cohort rather than two incomparable ones.
+        """
+        v2 = set(GBM_OS_STUDY.apply(cohort).to_frame()["global_session_key"])
+        v3 = set(preop_view.to_frame()["global_session_key"])
+        assert v2 < v3
+
+        gtr = preop_view.select(filters={"eor": "GTR"})
+        assert set(gtr.to_frame()["global_session_key"]) == v2
+
+    def test_grade_rule_is_unchanged_from_v2(self, preop_view):
+        """Dropping EOR must not quietly widen the disease under study."""
+        grades = preop_view.to_frame()["who_grade"]
+        assert set(grades.dropna().unique()) == {4}
+
+    def test_still_baseline_and_structurally_complete(self, preop_view):
+        df = preop_view.to_frame()
+        assert (df["session_index"] == 0).all()
+        assert df["is_structural_complete"].all()
+
+    def test_accounts_for_every_session(self, preop_view):
+        assert len(preop_view) + len(preop_view.exclusions()) == 1661
 
 
 class TestPhase1Delegates:

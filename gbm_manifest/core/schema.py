@@ -28,9 +28,10 @@ class SegConvention(str, Enum):
 
 class EORCategory(str, Enum):
     GTR = "GTR"
+    NTR = "NTR"                     # near-total: >90% resected, thin residual rim
     STR = "STR"
     BIOPSY = "biopsy"
-    NON_GTR = "non_GTR"
+    NON_GTR = "non_GTR"             # UPENN: >90% resection flag answered "N"
     UNKNOWN = "unknown"
 
 
