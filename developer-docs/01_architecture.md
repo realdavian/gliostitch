@@ -131,11 +131,18 @@ gliostitch studies gbm-os     # full definition
 | Study | Criteria | Cohort |
 |---|---|---|
 | `gbm-os` **(canonical)** | baseline ∩ complete ∩ GTR ∩ grade-IV ∩ has-OS | 502 — 377 train / 125 external |
-| `gbm-os-m6` | reconciliation only; omits has-OS | 508 — 377 train / 131 external |
+| `gbm-os-preop` | baseline ∩ complete ∩ grade-IV ∩ has-OS; no EOR criterion | 881 — 677 train / 204 external |
+| `gbm-os-no-survival-filter` | reconciliation only; omits has-OS | 508 — 377 train / 131 external |
 
-`gbm-os-m6` exists solely to reproduce the 131 figure that spec 01 M6 originally recorded,
-before the `has-OS` criterion was reconciled between the two specs. It is not the study
-cohort; `studies.CANONICAL` names the one that is.
+`gbm-os-preop` is the "true pre-op" cohort: extent of resection is a treatment, so it
+describes something that happens *after* the scan being predicted from, and requiring it
+leaves a cohort nobody can identify prospectively. EOR stays as a recorded covariate, and
+`gbm-os` is exactly the GTR stratum of `gbm-os-preop` — the two nest, so the stricter
+cohort remains reachable as a sensitivity analysis.
+
+`gbm-os-no-survival-filter` exists solely to reproduce the 131 figure originally recorded
+for this cohort, before the `has-OS` criterion was reconciled between the two specs. It is
+not the study cohort; `studies.CANONICAL` names the one that is.
 
 **Censoring is not filtered by any study.** The manifest records censored outcomes, and
 whether a model may use them is a modelling decision made downstream:

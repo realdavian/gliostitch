@@ -5,7 +5,7 @@ that share an annotation/intensity pipeline. Between independently annotated
 cohorts a mismatch proves nothing, so it must not downgrade a demographic
 candidate to 'unique'.
 
-Spec 01 §2.4 / §12 M6 — same inputs must yield a byte-identical manifest.
+Spec 01 §2.4 / §12 — same inputs must yield a byte-identical manifest.
 """
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ class TestDedupEvidenceScope:
 
 class TestReproducibility:
     def test_two_cold_builds_are_byte_identical(self, synthetic_roots, tmp_path):
-        """Spec 01 §12 M6 — same inputs, byte-identical outputs."""
+        """Spec 01 §12 — same inputs, byte-identical outputs."""
         import yaml
 
         from gbm_manifest.config import load_config
@@ -125,7 +125,7 @@ class TestStudyChoiceDoesNotReachTheManifest:
 
     def test_manifest_is_byte_identical_across_studies(self, synthetic_roots, tmp_path):
         a = self._build(synthetic_roots, tmp_path / "a", "gbm-os")
-        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-m6")
+        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-no-survival-filter")
 
         assert _digest(a / "master_manifest.csv") == _digest(b / "master_manifest.csv")
 
@@ -134,7 +134,7 @@ class TestStudyChoiceDoesNotReachTheManifest:
         import pandas as pd
 
         a = self._build(synthetic_roots, tmp_path / "a", "gbm-os")
-        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-m6")
+        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-no-survival-filter")
 
         rows_a = len(pd.read_csv(a / "master_manifest.csv"))
         rows_b = len(pd.read_csv(b / "master_manifest.csv"))

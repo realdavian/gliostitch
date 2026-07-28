@@ -131,8 +131,8 @@ class TestGBMOSRegression:
         view = self._gbm_os_view(cohort)
         assert len(view) == 502
 
-    def test_external_arm_matches_spec_m6(self, cohort):
-        """Spec 01 M6 omits has-OS from the cohort definition; on that wording
+    def test_external_arm_without_has_os(self, cohort):
+        """Omitting has-OS from the cohort definition gives an external arm of
         the external arm is exactly 131 (132 pass criteria, 1 dup removed)."""
         view = cohort.select(
             baseline_only=True,

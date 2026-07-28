@@ -190,7 +190,7 @@ UPENN patients meet every imaging and surgical criterion but carry no survival a
 so a survival model has no label to train on or evaluate against. They are excluded.
 Training is unaffected — 377 either way, since all six are UPENN.
 
-`gbm-os-m6` reproduces the original 131 for reconciliation only.
+`gbm-os-no-survival-filter` reproduces the original 131 for reconciliation only.
 
 ### RHUH has 40 patients, not 43
 

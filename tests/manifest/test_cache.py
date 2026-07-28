@@ -70,7 +70,7 @@ class TestStageInvalidation:
         Pipeline(load_config(cfg_path)).build(force=True)
         first = json.loads(cache.meta_path(sel).read_text())["fingerprint"]
 
-        _write_cfg(cfg_path, synthetic_roots, out, cohort={"study": "gbm-os-m6"})
+        _write_cfg(cfg_path, synthetic_roots, out, cohort={"study": "gbm-os-no-survival-filter"})
         pipeline = Pipeline(load_config(cfg_path))
         assert not cache.is_valid(sel, pipeline._fp_cohort()), \
             "stale cohort still looked valid after the study changed"
