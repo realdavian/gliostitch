@@ -158,8 +158,8 @@ GBM_OS_STUDY = StudyDefinition(
         # BraTS LGG and UCSF grade II/III, which are recorded explicitly.
         "who_grade": [4, None],
         # A survival study cannot use a session with no survival label.
-        # NOTE: spec 01 M6 omits this criterion and spec 02 P2 includes it —
-        # see M6_RECONSTRUCTION for the M6 wording.
+        # The cohort was first specified without this criterion; see
+        # GBM_OS_NO_SURVIVAL_FILTER for that wording and what it changes.
         "has_os": True,
     },
     os_thresholds=(300, 450),
@@ -208,15 +208,16 @@ GBM_OS_PREOP_STUDY = StudyDefinition(
 CANONICAL = "gbm-os"
 
 
-M6_RECONSTRUCTION = StudyDefinition(
-    name="gbm-os-m6",
+GBM_OS_NO_SURVIVAL_FILTER = StudyDefinition(
+    name="gbm-os-no-survival-filter",
     version="2",
     description=(
-        "RECONCILIATION ONLY — not the study cohort. Reproduces spec 01 M6's "
-        "original wording, which omitted has-OS and therefore counted 131 "
-        "external sessions. The extra six are UPENN patients with no survival "
-        "annotation: they meet every imaging and surgical criterion but carry "
-        "no label to train on or evaluate against. Use GBM_OS_STUDY."
+        "RECONCILIATION ONLY — not the study cohort. gbm-os with the has-OS "
+        "criterion removed, which is how the cohort was first specified and "
+        "why an external arm of 131 was originally recorded. The extra six are "
+        "UPENN patients with no survival annotation: they meet every imaging "
+        "and surgical criterion but carry no label to train on or evaluate "
+        "against. Use GBM_OS_STUDY."
     ),
     baseline_only=True,
     require_complete=True,
@@ -231,7 +232,7 @@ M6_RECONSTRUCTION = StudyDefinition(
 STUDIES: dict[str, StudyDefinition] = {
     GBM_OS_STUDY.name: GBM_OS_STUDY,
     GBM_OS_PREOP_STUDY.name: GBM_OS_PREOP_STUDY,
-    M6_RECONSTRUCTION.name: M6_RECONSTRUCTION,
+    GBM_OS_NO_SURVIVAL_FILTER.name: GBM_OS_NO_SURVIVAL_FILTER,
 }
 
 

@@ -1,4 +1,4 @@
-"""M1: ~30 normalize unit tests. No dataset access required."""
+"""Unit tests for value normalisation. No dataset access required."""
 import pytest
 
 from gbm_manifest.adapters.normalize import (

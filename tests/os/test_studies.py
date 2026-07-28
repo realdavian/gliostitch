@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from gbm_os.studies import (
+    GBM_OS_NO_SURVIVAL_FILTER,
     GBM_OS_PREOP_STUDY,
     GBM_OS_STUDY,
-    M6_RECONSTRUCTION,
     STUDIES,
     get_study,
 )
@@ -65,18 +65,19 @@ class TestGBMOSStudy:
         assert grades.isna().any(), "UPENN rows should survive on a null grade"
 
 
-class TestM6Reconstruction:
+class TestNoSurvivalFilterReconciliation:
     def test_reproduces_documented_external_arm(self, cohort):
-        """Spec 01 M6 omits has-OS and documents a 131-session external arm."""
-        df = M6_RECONSTRUCTION.apply(cohort).to_frame()
+        """Without the has-OS criterion the external arm is 131, the number
+        originally recorded for this cohort."""
+        df = GBM_OS_NO_SURVIVAL_FILTER.apply(cohort).to_frame()
         assert (df["dataset"] == "upenn_gbm").sum() == 131
 
     def test_differs_from_study_only_by_has_os(self, cohort):
         study = set(GBM_OS_STUDY.apply(cohort).to_frame()["global_session_key"])
-        m6 = set(M6_RECONSTRUCTION.apply(cohort).to_frame()["global_session_key"])
-        assert study < m6
+        reconciled = set(GBM_OS_NO_SURVIVAL_FILTER.apply(cohort).to_frame()["global_session_key"])
+        assert study < reconciled
         extra = cohort.select().to_frame().set_index("global_session_key").loc[
-            sorted(m6 - study)]
+            sorted(reconciled - study)]
         assert extra["os_days"].isna().all()
 
 
@@ -175,7 +176,7 @@ class TestCensoringIsDownstream:
 
 
 class TestCanonicalStudy:
-    """gbm-os is the study cohort; gbm-os-m6 exists only to explain an old number."""
+    """gbm-os is the study cohort; the reconciliation study only explains an old number."""
 
     def test_canonical_points_at_gbm_os(self):
         from gbm_os.studies import CANONICAL
@@ -193,13 +194,13 @@ class TestCanonicalStudy:
         assert cfg["cohort"]["study"] == CANONICAL
 
     def test_reconciliation_study_is_labelled_as_such(self):
-        assert "RECONCILIATION ONLY" in M6_RECONSTRUCTION.description
+        assert "RECONCILIATION ONLY" in GBM_OS_NO_SURVIVAL_FILTER.description
 
     def test_the_six_extra_cases_have_no_survival_label(self, cohort):
         """The whole basis of the decision: they cannot be trained on."""
         study = set(GBM_OS_STUDY.apply(cohort).to_frame()["global_session_key"])
-        m6 = set(M6_RECONSTRUCTION.apply(cohort).to_frame()["global_session_key"])
-        extra = sorted(m6 - study)
+        reconciled = set(GBM_OS_NO_SURVIVAL_FILTER.apply(cohort).to_frame()["global_session_key"])
+        extra = sorted(reconciled - study)
 
         assert len(extra) == 6
         rows = cohort.select().to_frame().set_index("global_session_key").loc[extra]
@@ -212,7 +213,7 @@ class TestCanonicalStudy:
             df = study.apply(cohort).to_frame()
             return (df["dataset"] != "upenn_gbm").sum()
 
-        assert train(GBM_OS_STUDY) == train(M6_RECONSTRUCTION) == 377
+        assert train(GBM_OS_STUDY) == train(GBM_OS_NO_SURVIVAL_FILTER) == 377
 
 
 class TestStudyPoliciesTravelWithIt:
