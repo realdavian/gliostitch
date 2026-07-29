@@ -43,14 +43,14 @@ def view(cohort):
 
 class TestGBMOSStudy:
     def test_selected_count(self, view):
-        assert len(view) == 502
+        assert len(view) == 531
 
     def test_external_arm(self, view):
         df = view.to_frame()
         assert (df["dataset"] == "upenn_gbm").sum() == 125
 
     def test_accounts_for_every_session(self, view):
-        assert len(view) + len(view.exclusions()) == 1661
+        assert len(view) + len(view.exclusions()) == 2109
 
     def test_all_selected_are_gtr_baseline_complete(self, view):
         df = view.to_frame()
@@ -90,10 +90,10 @@ class TestGBMOSPreopStudy:
     """v3 removes the one eligibility criterion that is a post-baseline event."""
 
     def test_selected_count(self, preop_view):
-        assert len(preop_view) == 881
+        assert len(preop_view) == 925
 
     def test_partitions(self, preop_view):
-        assert len(preop_view.select(partition="train")) == 677
+        assert len(preop_view.select(partition="train")) == 721
         assert len(preop_view.select(partition="external")) == 204
 
     def test_eor_is_not_an_eligibility_criterion(self):
@@ -107,7 +107,7 @@ class TestGBMOSPreopStudy:
     def test_v2_cohort_is_the_gtr_stratum_of_v3(self, cohort, preop_view):
         """The two studies must nest, so v2 is reachable as a v3 sub-analysis.
 
-        This is what makes 'primary on 881, sensitivity on the GTR stratum'
+        This is what makes 'primary on 925, sensitivity on the GTR stratum'
         a single cohort rather than two incomparable ones.
         """
         v2 = set(GBM_OS_STUDY.apply(cohort).to_frame()["global_session_key"])
@@ -128,17 +128,17 @@ class TestGBMOSPreopStudy:
         assert df["is_structural_complete"].all()
 
     def test_accounts_for_every_session(self, preop_view):
-        assert len(preop_view) + len(preop_view.exclusions()) == 1661
+        assert len(preop_view) + len(preop_view.exclusions()) == 2109
 
 
 class TestPreoperativeIsAsserted:
     """'Preoperative' must be a recorded fact, not an inference from ordering.
 
-    session_index == 0 means "earliest session on record". For the four current
-    datasets the earliest session happens to be preoperative, so the two agree
-    and this suite is a tautology — which is the point. It stops agreeing the
-    moment a cohort arrives whose first study follows surgery, and that is
-    exactly when a silent contamination would otherwise enter the cohort.
+    For the original four datasets session_index == 0 and preoperative agreed,
+    so this suite was a tautology. LUMIERE ended that: 24 of its local patients
+    have no preoperative study on disk, so their earliest session is a
+    follow-up sitting at session_index == 0. Without the criterion those enter
+    the cohort as baselines, and nothing else would catch it.
     """
 
     def test_study_requires_it_explicitly(self):
@@ -160,16 +160,30 @@ class TestPreoperativeIsAsserted:
         upenn = df[df["dataset"] == "upenn_gbm"]
         assert (upenn[upenn["session_index"] == 1]["acquisition_context"] == "postop").all()
 
-    def test_every_session_is_classified(self, cohort):
-        """No dataset may fall through to unknown without someone deciding."""
-        contexts = set(cohort.select().to_frame()["acquisition_context"].unique())
-        assert contexts == {"preop", "postop"}
+    def test_unknown_is_confined_to_unrated_lumiere_sessions(self, cohort):
+        """UNKNOWN is allowed, but only where the source really is silent.
 
-    def test_filter_is_a_no_op_on_the_current_four_datasets(self, cohort):
-        """Adding the criterion must not have moved any existing number.
+        LUMIERE leaves some follow-up studies unrated, and one whose patient has
+        no rated preoperative study to order it against cannot be placed. Every
+        other dataset documents its own timing, so a stray UNKNOWN there means
+        an adapter stopped deciding and started guessing.
+        """
+        df = cohort.select().to_frame()
+        unknown = df[df["acquisition_context"] == "unknown"]
+        assert set(unknown["dataset"].unique()) <= {"lumiere"}
+        assert set(df["acquisition_context"].unique()) <= {"preop", "postop", "unknown"}
 
-        If this fails, the criterion changed the cohort rather than pinning it,
-        and the counts in every other test are no longer comparable.
+    def test_unknown_never_reaches_a_cohort(self, preop_view, view):
+        """Unplaceable sessions must fail closed, not sneak in as baselines."""
+        for v in (preop_view, view):
+            assert (v.to_frame()["acquisition_context"] == "preop").all()
+
+    def test_criterion_excludes_postoperative_baselines(self, cohort):
+        """Dropping the criterion readmits exactly the sessions it exists for.
+
+        Pinning the difference rather than the totals: whatever the cohort size
+        becomes, removing the criterion must let in postoperative or unplaceable
+        studies and nothing else.
         """
         from dataclasses import replace
 
@@ -177,7 +191,25 @@ class TestPreoperativeIsAsserted:
             k: v for k, v in GBM_OS_PREOP_STUDY.filters.items()
             if k != "acquisition_context"
         })
-        assert len(without.apply(cohort)) == len(GBM_OS_PREOP_STUDY.apply(cohort)) == 881
+        strict = set(GBM_OS_PREOP_STUDY.apply(cohort).to_frame()["global_session_key"])
+        loose = without.apply(cohort).to_frame().set_index("global_session_key")
+
+        readmitted = loose.loc[sorted(set(loose.index) - strict)]
+        assert len(readmitted) > 0, "LUMIERE should make this criterion load-bearing"
+        assert (readmitted["acquisition_context"] != "preop").all()
+
+    def test_criterion_still_costs_the_original_four_datasets_nothing(self, cohort):
+        """It must exclude only LUMIERE sessions, never re-cut the old cohorts."""
+        from dataclasses import replace
+
+        without = replace(GBM_OS_PREOP_STUDY, filters={
+            k: v for k, v in GBM_OS_PREOP_STUDY.filters.items()
+            if k != "acquisition_context"
+        })
+        strict = set(GBM_OS_PREOP_STUDY.apply(cohort).to_frame()["global_session_key"])
+        loose = without.apply(cohort).to_frame().set_index("global_session_key")
+        readmitted = loose.loc[sorted(set(loose.index) - strict)]
+        assert set(readmitted["dataset"].unique()) == {"lumiere"}
 
 
 class TestPhase1Delegates:
@@ -245,24 +277,34 @@ class TestCanonicalStudy:
     def test_reconciliation_study_is_labelled_as_such(self):
         assert "RECONCILIATION ONLY" in GBM_OS_NO_SURVIVAL_FILTER.description
 
-    def test_the_six_extra_cases_have_no_survival_label(self, cohort):
-        """The whole basis of the decision: they cannot be trained on."""
+    def test_the_extra_cases_have_no_survival_label(self, cohort):
+        """The whole basis of the decision: they cannot be trained on.
+
+        Six UPENN sessions originally, plus one LUMIERE patient whose
+        preoperative study is on disk but whose survival time is not recorded.
+        What matters is the property, not the count — every session the
+        criterion removes must be one with nothing to train against.
+        """
         study = set(GBM_OS_STUDY.apply(cohort).to_frame()["global_session_key"])
         reconciled = set(GBM_OS_NO_SURVIVAL_FILTER.apply(cohort).to_frame()["global_session_key"])
         extra = sorted(reconciled - study)
 
-        assert len(extra) == 6
+        assert extra, "the criterion must still remove something"
         rows = cohort.select().to_frame().set_index("global_session_key").loc[extra]
         assert rows["os_days"].isna().all()
-        assert (rows["dataset"] == "upenn_gbm").all()
+        assert (rows["dataset"] == "upenn_gbm").sum() == 6
 
-    def test_training_arm_is_unaffected_by_the_choice(self, cohort):
-        """The criterion only ever removes UPENN, so training is 377 either way."""
+    def test_choice_barely_moves_the_training_arm(self, cohort):
+        """It used to move nothing: the six unlabelled sessions were all UPENN,
+        so the external arm absorbed the whole difference. LUMIERE adds one
+        unlabelled training-side patient, so the arms now differ by exactly
+        that — still a decision about the external count, not the model."""
         def train(study):
             df = study.apply(cohort).to_frame()
-            return (df["dataset"] != "upenn_gbm").sum()
+            return int((df["dataset"] != "upenn_gbm").sum())
 
-        assert train(GBM_OS_STUDY) == train(GBM_OS_NO_SURVIVAL_FILTER) == 377
+        assert train(GBM_OS_STUDY) == 406
+        assert train(GBM_OS_NO_SURVIVAL_FILTER) - train(GBM_OS_STUDY) == 1
 
 
 class TestStudyPoliciesTravelWithIt:
@@ -283,7 +325,7 @@ class TestStudyPoliciesTravelWithIt:
     def test_partition_works_on_a_config_less_cohort(self, cohort):
         view = GBM_OS_STUDY.apply(self._bare_cohort())
         assert len(view.select(partition="external")) == 125
-        assert len(view.select(partition="train")) == 377
+        assert len(view.select(partition="train")) == 406
 
     def test_apply_matches_load(self, cohort):
         """The two documented entry points must agree."""

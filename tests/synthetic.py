@@ -9,6 +9,10 @@ datasets contain, so adapter defects are reproducible without /mnt/disk1:
            different age and a follow-up EOR of "Not Applicable"
   RHUH   — one longitudinal patient with sessions 0 and 1
   UCSF   — 4-digit directory id vs 3-digit CSV id
+  LUMIERE— Patient-001 has week-000-1 (Pre-Op) and week-000-2 (Post-Op) in the
+           SAME week, so ordering alone cannot tell them apart; Patient-002 has
+           no preoperative study at all, so its earliest session is a follow-up
+           sitting at session_index 0; Patient-003 has an unrated session
 
 BraTS_Training_001 and UPENN-GBM-00002_11 are seeded as a demographic match with
 byte-identical segmentations, so the dedup hash tiers have something to confirm.
@@ -154,16 +158,82 @@ def _build_ucsf(root: Path) -> None:
     )
 
 
+# ── LUMIERE ───────────────────────────────────────────────────────────────── #
+
+def _build_lumiere(root: Path) -> None:
+    """Three patients covering the hazards ordering alone cannot resolve.
+
+    Patient-001  week-000-1 Pre-Op, week-000-2 Post-Op — same week, so only the
+                 expert rating separates them.
+    Patient-002  week-000 Post-Op only — no preoperative study exists, so its
+                 earliest session must NOT be treated as a baseline.
+    Patient-003  week-000 Pre-Op, week-012 unrated — the unrated follow-up is
+                 later than a known preoperative study, so it is postoperative.
+    """
+    sessions = {
+        "Patient-001": ["week-000-1", "week-000-2"],
+        "Patient-002": ["week-000"],
+        "Patient-003": ["week-000", "week-012"],
+    }
+    for pid, weeks in sessions.items():
+        for wk in weeks:
+            for tok in ("t1_skull_strip", "ct1_skull_strip", "t2_skull_strip",
+                        "flair_skull_strip", "seg_mask"):
+                _write_nii(root / "train" / pid / wk / f"{tok}.nii",
+                           900 + len(pid) + len(wk) + len(tok), gzip=False)
+
+    _write_csv(
+        root / "LUMIERE-Demographics_Pathology.csv",
+        ["Patient", "Survival time (weeks)", "Sex", "Age at surgery (years)",
+         "IDH (WT: wild type)", "IDH method", "MGMT qualitative", "MGMT quantitative"],
+        # 'not methylated' and 'R132H mut' are the spellings that used to
+        # normalise wrongly; 'na' survival exercises the unlabelled path.
+        [{"Patient": "Patient-001", "Survival time (weeks)": "72", "Sex": "female",
+          "Age at surgery (years)": "57", "IDH (WT: wild type)": "WT",
+          "IDH method": "BES", "MGMT qualitative": "not methylated",
+          "MGMT quantitative": "0.00%"},
+         {"Patient": "Patient-002", "Survival time (weeks)": "40", "Sex": "male",
+          "Age at surgery (years)": "61", "IDH (WT: wild type)": "R132H mut",
+          "IDH method": "IHC", "MGMT qualitative": "methylated",
+          "MGMT quantitative": "na"},
+         {"Patient": "Patient-003", "Survival time (weeks)": "na", "Sex": "male",
+          "Age at surgery (years)": "48", "IDH (WT: wild type)": "na",
+          "IDH method": "na", "MGMT qualitative": "na",
+          "MGMT quantitative": "na"}],
+    )
+
+    rating = ("Rating (according to RANO, PD: Progressive disease, SD: Stable "
+              "disease, PR: Partial response, CR: Complete response, "
+              "Pre-Op: Pre-Operative, Post-Op: Post-Operative)")
+    reason = ("Rating rationale (CRET: complete resection of the enhancing tumor, "
+              "PRET: partial resection of the enhancing tumor, T2-Progr.: "
+              "T2-Progression, L: Lesion)")
+    _write_csv(
+        root / "LUMIERE-ExpertRating-v202211.csv",
+        ["Patient", "Date", "LessThan3Months", "NonMeasurableLesions", rating, reason],
+        [{"Patient": "Patient-001", "Date": "week-000-1", "LessThan3Months": "",
+          "NonMeasurableLesions": "", rating: "Pre-Op", reason: ""},
+         {"Patient": "Patient-001", "Date": "week-000-2", "LessThan3Months": "",
+          "NonMeasurableLesions": "", rating: "Post-Op", reason: "CRET"},
+         {"Patient": "Patient-002", "Date": "week-000", "LessThan3Months": "",
+          "NonMeasurableLesions": "", rating: "Post-Op", reason: "PRET"},
+         {"Patient": "Patient-003", "Date": "week-000", "LessThan3Months": "",
+          "NonMeasurableLesions": "", rating: "Pre-Op", reason: ""}],
+    )
+
+
 def build_synthetic_datasets(base: Path) -> dict[str, Path]:
-    """Create all four dataset trees under `base`; return dataset -> root."""
+    """Create all five dataset trees under `base`; return dataset -> root."""
     roots = {
         "brats2020": base / "BraTS-2020",
         "rhuh_gbm": base / "RHUH-GBM",
         "upenn_gbm": base / "UPENN-GBM",
         "ucsf_pdgm": base / "UCSF-PDGM",
+        "lumiere": base / "LUMIERE",
     }
     _build_brats(roots["brats2020"])
     _build_rhuh(roots["rhuh_gbm"])
     _build_upenn(roots["upenn_gbm"])
     _build_ucsf(roots["ucsf_pdgm"])
+    _build_lumiere(roots["lumiere"])
     return roots

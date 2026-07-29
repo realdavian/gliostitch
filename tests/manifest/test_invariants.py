@@ -60,7 +60,7 @@ class TestDedupEvidenceScope:
 
     def test_duplicates_are_annotated_never_deleted(self, synthetic_manifest):
         """Spec 01 §2.3 — both members stay in the manifest."""
-        assert len(synthetic_manifest) == 10
+        assert len(synthetic_manifest) == 15
 
 
 class TestReproducibility:

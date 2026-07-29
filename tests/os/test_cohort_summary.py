@@ -23,7 +23,7 @@ class TestSummaryStructure:
     def test_clinical_has_all_datasets(self, cohort):
         s = cohort_summary(cohort.select())
         datasets = set(s.clinical.index) - {"TOTAL"}
-        assert datasets == {"brats2020", "rhuh_gbm", "ucsf_pdgm", "upenn_gbm"}
+        assert datasets == {"brats2020", "lumiere", "rhuh_gbm", "ucsf_pdgm", "upenn_gbm"}
 
     def test_imaging_has_total_row(self, cohort):
         s = cohort_summary(cohort.select())
@@ -118,10 +118,26 @@ class TestClinicalStats:
         assert s.clinical.loc["brats2020", "age_pct_missing"] > 0.0
 
     def test_event_rate_in_range(self, cohort):
+        """A rate must be a percentage, or absent where vital status is.
+
+        LUMIERE records a survival time but no event indicator, so its event
+        rate is undefined rather than zero — reporting 0% would assert every
+        patient was censored, which is the opposite of what the source says.
+        """
+        import pandas as pd
+
         s = cohort_summary(cohort.select())
-        for dataset in ["brats2020", "rhuh_gbm", "ucsf_pdgm", "upenn_gbm"]:
+        for dataset in ["brats2020", "lumiere", "rhuh_gbm", "ucsf_pdgm", "upenn_gbm"]:
             rate = s.clinical.loc[dataset, "event_rate_pct"]
-            assert 0.0 <= rate <= 100.0
+            assert pd.isna(rate) or 0.0 <= rate <= 100.0
+
+    def test_event_rate_is_undefined_only_where_vital_status_is(self, cohort):
+        import pandas as pd
+
+        s = cohort_summary(cohort.select())
+        undefined = {d for d in s.clinical.index
+                     if d != "TOTAL" and pd.isna(s.clinical.loc[d, "event_rate_pct"])}
+        assert undefined == {"lumiere"}
 
 
 class TestDistributions:

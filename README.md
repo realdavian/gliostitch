@@ -6,7 +6,7 @@
 [![Licence](https://img.shields.io/badge/licence-GPL--3.0--or--later-blue)](LICENSE)
 [![CI](https://github.com/realdavian/gliostitch/actions/workflows/ci.yml/badge.svg)](https://github.com/realdavian/gliostitch/actions/workflows/ci.yml)
 
-Reproducible cohort selection over four public glioma MRI datasets — stitched into one
+Reproducible cohort selection over five public glioma MRI datasets — stitched into one
 manifest of facts, with a study definition layered on top.
 
 Assembling a multi-cohort GBM study means reconciling four different directory layouts,
@@ -20,7 +20,7 @@ named, versioned study definition. The split matters: the manifest never changes
 research question does.
 
 ```
-1661 imaging sessions  →  study definition  →  502 sessions (377 training / 125 external)
+2109 imaging sessions  →  study definition  →  531 sessions (406 training / 125 external)
                                                 with a reason attached to all 1159 exclusions
 ```
 
@@ -72,7 +72,7 @@ cohort = Cohort.from_manifest(
 )
 
 view = GBM_OS_STUDY.apply(cohort)
-print(len(view))                      # 502
+print(len(view))                      # 531
 
 for spec in view:                     # SampleSpec: resolved paths + clinical metadata
     print(spec.paths["t1ce"], spec.os_days, spec.os_class)
@@ -134,14 +134,15 @@ cohort table is derivable rather than asserted:
 
 ```python
 >>> print(view.provenance())
-input                      1661
-baseline_only              1661 →   1521  (−140)
-require_complete           1521 →   1126  (−395)
-filter:eor                 1126 →    526  (−600)
-filter:who_grade            526 →    509  (−17)
-filter:has_os               509 →    503  (−6)
-resolve_duplicates          503 →    502  (−1)
-selected                    502
+input                      2109
+baseline_only              2109 →   1590  (−519)
+require_complete           1590 →   1195  (−395)
+filter:eor                 1195 →    572  (−623)
+filter:who_grade            572 →    555  (−17)
+filter:has_os               555 →    547  (−8)
+filter:acquisition_context  547 →    532  (−15)
+resolve_duplicates          532 →    531  (−1)
+selected                    531
 
 >>> view.exclusions()      # every dropped session, tagged with its reason
 ```

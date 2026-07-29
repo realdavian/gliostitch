@@ -140,7 +140,7 @@ class StudyDefinition:
 
 # ── the GBM-OS survival study ─────────────────────────────────────────────── #
 
-_PRIORITY = ("brats2020", "ucsf_pdgm", "rhuh_gbm", "upenn_gbm")
+_PRIORITY = ("brats2020", "ucsf_pdgm", "rhuh_gbm", "lumiere", "upenn_gbm")
 
 GBM_OS_STUDY = StudyDefinition(
     name="gbm-os",
@@ -161,6 +161,16 @@ GBM_OS_STUDY = StudyDefinition(
         # The cohort was first specified without this criterion; see
         # GBM_OS_NO_SURVIVAL_FILTER for that wording and what it changes.
         "has_os": True,
+        # This study has always described itself as preoperative; until
+        # acquisition_context existed it could only approximate that with
+        # baseline_only, which asks a weaker question — "earliest session on
+        # record". The two agreed for as long as every cohort's first study was
+        # preoperative, and stopped agreeing the moment LUMIERE arrived: 24 of
+        # its local patients have no preoperative study on disk, so their
+        # earliest session is a follow-up sitting at session_index == 0. This
+        # criterion is a no-op on the original four datasets and the reason
+        # those postoperative scans are not in the cohort.
+        "acquisition_context": "preop",
     },
     os_thresholds=(300, 450),
     external_datasets=frozenset({"upenn_gbm"}),
@@ -226,7 +236,10 @@ GBM_OS_NO_SURVIVAL_FILTER = StudyDefinition(
     ),
     baseline_only=True,
     require_complete=True,
-    filters={"eor": "GTR", "who_grade": [4, None]},
+    # gbm-os minus has_os, and identical in every other respect — including
+    # acquisition_context, or the two would differ by two criteria and the
+    # reconciliation would no longer isolate the one under study.
+    filters={"eor": "GTR", "who_grade": [4, None], "acquisition_context": "preop"},
     os_thresholds=(300, 450),
     external_datasets=frozenset({"upenn_gbm"}),
     priority=_PRIORITY,

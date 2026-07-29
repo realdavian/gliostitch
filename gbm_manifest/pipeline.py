@@ -25,6 +25,7 @@ _DATASET_MAP = {
     "rhuh_gbm": Dataset.RHUH_GBM,
     "upenn_gbm": Dataset.UPENN_GBM,
     "ucsf_pdgm": Dataset.UCSF_PDGM,
+    "lumiere": Dataset.LUMIERE,
 }
 
 

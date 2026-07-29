@@ -11,7 +11,7 @@ wrong, that is recorded, because the failure is the argument.
 
 ## The manifest is a facts superset, not a cohort
 
-`master_manifest.csv` holds one row per imaging session — 1661 rows across four datasets —
+`master_manifest.csv` holds one row per imaging session — 2109 rows across five datasets —
 and records only what is true of that session: identity, relative paths, presence flags,
 raw and normalised clinical values, duplicate identity.
 
@@ -42,7 +42,7 @@ ever skipped for incompleteness.
 wrong three stages later cannot be traced back to a subject that was never yielded.
 
 **What breaks if reversed.** Exclusion accounting stops summing. The pipeline currently
-guarantees `selected + excluded == 1661`; that identity is what makes the cohort table
+guarantees `selected + excluded == 2109`; that identity is what makes the cohort table
 defensible.
 
 ---
@@ -107,7 +107,7 @@ them. Whether a model may use a patient who was alive at last follow-up is decid
 selection time:
 
 ```python
-view = GBM_OS_STUDY.apply(cohort)                 # 502, censoring intact
+view = GBM_OS_STUDY.apply(cohort)                 # 531, censoring intact
 deceased = view.select(filters={"os_event": 1})   # 390, complete-case
 ```
 
@@ -188,7 +188,8 @@ UCSF's 104 — an inconsistency, not a rule. Applying `os_event == 1` uniformly 
 The two build specs disagreed: one omitted the has-OS criterion the other required. Six
 UPENN patients meet every imaging and surgical criterion but carry no survival annotation,
 so a survival model has no label to train on or evaluate against. They are excluded.
-Training is unaffected — 377 either way, since all six are UPENN.
+Training moves by one — the six UPENN sessions are joined by a single LUMIERE
+patient whose preoperative study is on disk but whose survival time is not recorded.
 
 `gbm-os-no-survival-filter` reproduces the original 131 for reconciliation only.
 

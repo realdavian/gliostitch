@@ -16,12 +16,12 @@ class TestNullNormalisation:
         view = cohort.select(where=lambda r: r["os_days"] is not None)
         df = view.to_frame()
         assert df["os_days"].notna().all()
-        assert 0 < len(df) < 1661
+        assert 0 < len(df) < 2109
 
     def test_is_none_selects_the_complement(self, cohort):
         with_os = len(cohort.select(where=lambda r: r["os_days"] is not None))
         without = len(cohort.select(where=lambda r: r["os_days"] is None))
-        assert with_os + without == 1661
+        assert with_os + without == 2109
 
     def test_matches_pandas_notna(self, cohort):
         via_python = len(cohort.select(where=lambda r: r["os_days"] is not None))

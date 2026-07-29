@@ -11,6 +11,9 @@ datasets:
   ucsf_pdgm:
     root: /mnt/disk1/datasets/UCSF-PDGM
     enabled: true
+  lumiere:
+    root: /mnt/disk1/datasets/LUMIERE
+    enabled: true
 
 output_dir: /home/humanailab3/Project/gbm-surv-data-pipeline/output
 

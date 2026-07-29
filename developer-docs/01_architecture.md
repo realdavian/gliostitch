@@ -20,7 +20,7 @@ Every design question below resolves against that sentence.
 training.
 
 **What it owns:**
-- Per-dataset adapters (BraTS2020, UCSF-PDGM, UPENN-GBM, RHUH-GBM) that handle each
+- Per-dataset adapters (BraTS2020, UCSF-PDGM, UPENN-GBM, RHUH-GBM, LUMIERE) that handle each
   dataset's quirks: directory layout, file naming, clinical CSV parsing, ID mismatches,
   dual-encoded survival fields
 - Deduplication across datasets (demographic → segmentation hash → image hash), with
@@ -33,7 +33,7 @@ training.
 held-out cohort, duplicate priority, or any other research decision. See
 *The cohort stage* below.
 
-**Output:** `output/master_manifest.csv` — one row per imaging session (1661 rows,
+**Output:** `output/master_manifest.csv` — one row per imaging session (2109 rows,
 31 columns), defined by `MANIFEST_COLUMNS` in `gbm_manifest/core/schema.py`.
 
 **Entrypoint:** CLI — `gliostitch build`, or stage-by-stage subcommands.
@@ -130,9 +130,9 @@ gliostitch studies gbm-os     # full definition
 
 | Study | Criteria | Cohort |
 |---|---|---|
-| `gbm-os` **(canonical)** | baseline ∩ complete ∩ GTR ∩ grade-IV ∩ has-OS | 502 — 377 train / 125 external |
-| `gbm-os-preop` | baseline ∩ complete ∩ grade-IV ∩ has-OS; no EOR criterion | 881 — 677 train / 204 external |
-| `gbm-os-no-survival-filter` | reconciliation only; omits has-OS | 508 — 377 train / 131 external |
+| `gbm-os` **(canonical)** | preop ∩ baseline ∩ complete ∩ GTR ∩ grade-IV ∩ has-OS | 531 — 406 train / 125 external |
+| `gbm-os-preop` | preop ∩ baseline ∩ complete ∩ grade-IV ∩ has-OS; no EOR criterion | 925 — 721 train / 204 external |
+| `gbm-os-no-survival-filter` | reconciliation only; omits has-OS | 538 — 407 train / 131 external |
 
 `gbm-os-preop` is the "true pre-op" cohort: extent of resection is a treatment, so it
 describes something that happens *after* the scan being predicted from, and requiring it
@@ -148,8 +148,8 @@ not the study cohort; `studies.CANONICAL` names the one that is.
 whether a model may use them is a modelling decision made downstream:
 
 ```python
-view = GBM_OS_STUDY.apply(cohort)          # 502, censoring intact
-deceased = view.select(filters={"os_event": 1})   # 390, complete-case
+view = GBM_OS_STUDY.apply(cohort)          # 531, censoring intact
+deceased = view.select(filters={"os_event": 1})   # 390, complete-case (LUMIERE has no vital status)
 ```
 
 Baking it into the study would make the alternative unreachable. See
@@ -168,14 +168,15 @@ view.exclusions()    # DataFrame, one row per drop, tagged with the reason
 ```
 
 ```
-input                      1661
-baseline_only              1661 →   1521  (−140)
-require_complete           1521 →   1126  (−395)
-filter:eor                 1126 →    526  (−600)
-filter:who_grade            526 →    509  (−17)
-filter:has_os               509 →    503  (−6)
-resolve_duplicates          503 →    502  (−1)
-selected                    502
+input                      2109
+baseline_only              2109 →   1590  (−519)
+require_complete           1590 →   1195  (−395)
+filter:eor                 1195 →    572  (−623)
+filter:who_grade            572 →    555  (−17)
+filter:has_os               555 →    547  (−8)
+filter:acquisition_context  547 →    532  (−15)
+resolve_duplicates          532 →    531  (−1)
+selected                    531
 ```
 
 Criteria are applied sequentially rather than as one combined mask, so each dropped row is

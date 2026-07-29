@@ -5,7 +5,7 @@ from __future__ import annotations
 class TestEmptySelection:
     def test_all_rows_returned(self, cohort):
         view = cohort.select()
-        assert len(view) == 1661
+        assert len(view) == 2109
 
 
 class TestBaselineFilter:
@@ -13,7 +13,7 @@ class TestBaselineFilter:
         view = cohort.select(baseline_only=True)
         df = view.to_frame()
         assert (df["session_index"] == 0).all()
-        assert len(df) == 1521  # 369+40+501+611
+        assert len(df) == 1590  # 369+40+501+611+69
 
     def test_non_baseline_excluded(self, cohort):
         view = cohort.select(baseline_only=True)
@@ -107,9 +107,9 @@ class TestChaining:
 class TestGBMOSRegression:
     """P2 regression: GBM-OS study cohort.
 
-    Criteria: baseline ∩ complete ∩ GTR ∩ grade-IV[UCSF] ∩ has-OS
+    Criteria: preop ∩ baseline ∩ complete ∩ GTR ∩ grade-IV[UCSF] ∩ has-OS
     Config: external=UPENN, resolve_duplicates="drop"
-    Expected count: 502 (503 pass criteria, 1 UPENN dup removed)
+    Expected count: 531 (502 from the original four, plus 29 LUMIERE)
 
     Was 488 before the UPENN session-keying fix. clinical_info.csv holds one row
     per session, and 41 patients have both a _11 baseline and a _21 follow-up;
@@ -122,14 +122,15 @@ class TestGBMOSRegression:
         return cohort.select(
             baseline_only=True,
             require_complete=True,
-            filters={"eor": "GTR", "has_os": True},
+            filters={"eor": "GTR", "has_os": True,
+                     "acquisition_context": "preop"},
             where=lambda r: r["dataset"] != "ucsf_pdgm" or r["who_grade"] == 4,
             resolve_duplicates="drop",
         )
 
     def test_cohort_count(self, cohort):
         view = self._gbm_os_view(cohort)
-        assert len(view) == 502
+        assert len(view) == 531
 
     def test_external_arm_without_has_os(self, cohort):
         """Omitting has-OS from the cohort definition gives an external arm of
@@ -137,7 +138,7 @@ class TestGBMOSRegression:
         view = cohort.select(
             baseline_only=True,
             require_complete=True,
-            filters={"eor": "GTR"},
+            filters={"eor": "GTR", "acquisition_context": "preop"},
             where=lambda r: r["dataset"] != "ucsf_pdgm" or r["who_grade"] == 4,
             resolve_duplicates="drop",
         )

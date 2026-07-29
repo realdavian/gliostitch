@@ -48,4 +48,4 @@ class TestPathResolution:
             for mod, present in spec.present.items():
                 if present and spec.paths.get(mod):
                     datasets_seen.add(spec.dataset)
-        assert datasets_seen == {"brats2020", "rhuh_gbm", "ucsf_pdgm", "upenn_gbm"}
+        assert datasets_seen == {"brats2020", "lumiere", "rhuh_gbm", "ucsf_pdgm", "upenn_gbm"}
