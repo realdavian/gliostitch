@@ -147,9 +147,9 @@ class TestGBMOSRegression:
 
     def test_deterministic(self, cohort):
         """Same criteria → same count every time."""
-        v1 = self._gbm_os_view(cohort)
-        v2 = self._gbm_os_view(cohort)
-        assert len(v1) == len(v2)
+        first = self._gbm_os_view(cohort)
+        second = self._gbm_os_view(cohort)
+        assert len(first) == len(second)
 
     def test_all_baseline(self, cohort):
         df = self._gbm_os_view(cohort).to_frame()

@@ -14,7 +14,7 @@ Censoring is deliberately NOT filtered here. The manifest records what is true,
 including censored outcomes, and whether a model may use them is a modelling
 decision made at selection time:
 
-    view = GBM_OS_STUDY.apply(cohort)              # 502, censoring intact
+    view = GBM_OS_STUDY.apply(cohort)              # 531, censoring intact
     deceased = view.select(filters={"os_event": 1})  # 390, complete-case
 
 Dropping censored rows earlier would bake a modelling assumption into the
@@ -157,9 +157,10 @@ GBM_OS_STUDY = StudyDefinition(
         # grade column because the cohort is GBM by construction; it excludes
         # BraTS LGG and UCSF grade II/III, which are recorded explicitly.
         "who_grade": [4, None],
-        # A survival study cannot use a session with no survival label.
-        # The cohort was first specified without this criterion; see
-        # GBM_OS_NO_SURVIVAL_FILTER for that wording and what it changes.
+        # A survival study cannot use a session with no survival label. The
+        # cohort was first specified without this criterion, which is why an
+        # external arm of 131 was originally recorded; see "Training is 377" in
+        # developer-docs/03_design_decisions.md.
         "has_os": True,
         # This study has always described itself as preoperative; until
         # acquisition_context existed it could only approximate that with
@@ -179,20 +180,20 @@ GBM_OS_STUDY = StudyDefinition(
 )
 
 
-GBM_OS_PREOP_STUDY = StudyDefinition(
-    name="gbm-os-preop",
-    version="3",
+GBM_OS_ANY_EOR_STUDY = StudyDefinition(
+    name="gbm-os-any-eor",
+    version="1",
     description=(
         "Overall-survival classification over baseline preoperative GBM MRI, "
-        "held out on UPENN-GBM. Eligibility uses no post-baseline variable: "
-        "extent of resection is recorded, never required."
+        "held out on UPENN-GBM. Identical to gbm-os except that extent of "
+        "resection is recorded, never required."
     ),
     baseline_only=True,
     require_complete=True,
     filters={
         # No `eor` criterion, and that absence is the point of this study.
         #
-        # v2 requires eor == GTR. Extent of resection is a *treatment* — it
+        # gbm-os requires eor == GTR. Extent of resection is a *treatment* — it
         # happens after the scan the model predicts from — and it is partly
         # determined by the very imaging phenotype being modelled: tumours are
         # biopsied rather than resected because of where and how they present.
@@ -219,38 +220,17 @@ GBM_OS_PREOP_STUDY = StudyDefinition(
 )
 
 
-#: The study cohort. Everything else in this module is reconciliation.
+#: The study the pipeline emits by default.
 CANONICAL = "gbm-os"
 
 
-GBM_OS_NO_SURVIVAL_FILTER = StudyDefinition(
-    name="gbm-os-no-survival-filter",
-    version="2",
-    description=(
-        "RECONCILIATION ONLY — not the study cohort. gbm-os with the has-OS "
-        "criterion removed, which is how the cohort was first specified and "
-        "why an external arm of 131 was originally recorded. The extra six are "
-        "UPENN patients with no survival annotation: they meet every imaging "
-        "and surgical criterion but carry no label to train on or evaluate "
-        "against. Use GBM_OS_STUDY."
-    ),
-    baseline_only=True,
-    require_complete=True,
-    # gbm-os minus has_os, and identical in every other respect — including
-    # acquisition_context, or the two would differ by two criteria and the
-    # reconciliation would no longer isolate the one under study.
-    filters={"eor": "GTR", "who_grade": [4, None], "acquisition_context": "preop"},
-    os_thresholds=(300, 450),
-    external_datasets=frozenset({"upenn_gbm"}),
-    priority=_PRIORITY,
-    resolve_duplicates="drop",
-)
-
-
+#: Two studies, differing in exactly one criterion: whether a gross-total
+#: resection is required. Both are preoperative, both band survival the same
+#: way, both hold out UPENN-GBM. gbm-os is the stricter of the two and nests
+#: inside gbm-os-any-eor as its GTR stratum.
 STUDIES: dict[str, StudyDefinition] = {
     GBM_OS_STUDY.name: GBM_OS_STUDY,
-    GBM_OS_PREOP_STUDY.name: GBM_OS_PREOP_STUDY,
-    GBM_OS_NO_SURVIVAL_FILTER.name: GBM_OS_NO_SURVIVAL_FILTER,
+    GBM_OS_ANY_EOR_STUDY.name: GBM_OS_ANY_EOR_STUDY,
 }
 
 
