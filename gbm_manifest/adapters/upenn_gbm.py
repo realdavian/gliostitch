@@ -15,7 +15,7 @@ import pandas as pd
 
 from ..core.exceptions import ClinicalKeyCollision, MissingColumnError
 from ..core.layout import LayoutIssue
-from ..core.schema import ClinicalRecord, Dataset, RawSession, SegConvention
+from ..core.schema import AcquisitionContext, ClinicalRecord, Dataset, RawSession, SegConvention
 from .base import register_adapter
 from .normalize import (event_from_status, normalize_eor_binary, normalize_idh,
                         normalize_mgmt, raw_str, to_float)
@@ -63,6 +63,9 @@ class UPENNAdapter:
             seg_path, seg_source = self._resolve_seg(sid)
             yield RawSession(
                 dataset=self.name, patient_id=pid, session_index=session_index,
+                # _11 is presurgical, _21 is a postoperative follow-up.
+                acquisition_context=(AcquisitionContext.PREOP if session_index == 0
+                                     else AcquisitionContext.POSTOP),
                 t1_path=rel(_MODS["t1"]), t1ce_path=rel(_MODS["t1ce"]),
                 t2_path=rel(_MODS["t2"]), flair_path=rel(_MODS["flair"]),
                 seg_path=seg_path,

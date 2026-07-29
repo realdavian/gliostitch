@@ -16,7 +16,7 @@ import pandas as pd
 
 from ..core.exceptions import MissingColumnError
 from ..core.layout import LayoutIssue
-from ..core.schema import ClinicalRecord, Dataset, RawSession, SegConvention
+from ..core.schema import AcquisitionContext, ClinicalRecord, Dataset, RawSession, SegConvention
 from .base import register_adapter
 from .normalize import (event_from_int, normalize_eor_categorical,
                         normalize_grade, normalize_idh, normalize_mgmt,
@@ -52,6 +52,8 @@ class UCSFAdapter:
 
             yield RawSession(
                 dataset=self.name, patient_id=pid, session_index=0,
+                # UCSF-PDGM ships one preoperative study per patient.
+                acquisition_context=AcquisitionContext.PREOP,
                 t1_path=rel(_MODS["t1"]), t1ce_path=rel(_MODS["t1ce"]),
                 t2_path=rel(_MODS["t2"]), flair_path=rel(_MODS["flair"]),
                 seg_path=rel(_MODS["seg"]),

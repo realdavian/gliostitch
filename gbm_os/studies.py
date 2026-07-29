@@ -196,6 +196,11 @@ GBM_OS_PREOP_STUDY = StudyDefinition(
         # which is a different decision from removing a treatment variable.
         "who_grade": [4, None],
         "has_os": True,
+        # baseline_only gives session_index == 0, which only means "earliest on
+        # record". For a preoperative study that has to be asserted, not
+        # assumed: a cohort whose earliest study follows surgery would satisfy
+        # baseline_only and be silently wrong.
+        "acquisition_context": "preop",
     },
     os_thresholds=(300, 450),
     external_datasets=frozenset({"upenn_gbm"}),

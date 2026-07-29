@@ -26,6 +26,21 @@ class SegConvention(str, Enum):
     RHUH = "rhuh"                   # {0,1,2,3}  ET = 3 -> remap 3->4 at load
 
 
+class AcquisitionContext(str, Enum):
+    """Where a session sits relative to the first resection.
+
+    session_index == 0 only means "earliest session on record", which is not
+    the same claim. A dataset whose earliest scan is a post-operative one — a
+    radiotherapy planning study, a longitudinal cohort whose first two studies
+    straddle surgery in the same week — would be selected as a preoperative
+    baseline with nothing to catch it. Recording the fact makes the eligibility
+    rule enforceable rather than assumed.
+    """
+    PREOP = "preop"      # before any resection
+    POSTOP = "postop"    # after the first resection, follow-up included
+    UNKNOWN = "unknown"
+
+
 class EORCategory(str, Enum):
     GTR = "GTR"
     NTR = "NTR"                     # near-total: >90% resected, thin residual rim
@@ -58,6 +73,7 @@ class RawSession:
     dataset: Dataset
     patient_id: str
     session_index: int
+    acquisition_context: AcquisitionContext
     t1_path: Optional[str]
     t1ce_path: Optional[str]
     t2_path: Optional[str]
@@ -104,6 +120,7 @@ class ManifestRow:
     dataset: str
     patient_id: str
     session_index: int
+    acquisition_context: str
     global_session_key: str
     # paths (relative to dataset root)
     t1_path: Optional[str]
@@ -147,7 +164,9 @@ MANIFEST_COLUMNS: list[str] = [f.name for f in fields(ManifestRow)]
 #   2 — UPENN clinical records keyed per session; BraTS grade retained for
 #       subjects absent from survival_info; dedup hash evidence scoped to
 #       same-pipeline pairs.
-SCHEMA_VERSION: int = 2
+#   3 — acquisition_context recorded per session, so "preoperative" stops being
+#       inferred from session_index == 0.
+SCHEMA_VERSION: int = 3
 
 DERIVED_NOT_STORED: tuple[str, ...] = (
     "os_class", "is_baseline", "is_longitudinal",

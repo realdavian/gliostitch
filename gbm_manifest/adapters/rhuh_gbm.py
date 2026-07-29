@@ -14,7 +14,7 @@ import pandas as pd
 
 from ..core.exceptions import MissingColumnError
 from ..core.layout import LayoutIssue
-from ..core.schema import ClinicalRecord, Dataset, RawSession, SegConvention
+from ..core.schema import AcquisitionContext, ClinicalRecord, Dataset, RawSession, SegConvention
 from .base import register_adapter
 from .normalize import (event_from_censored_flag, normalize_eor_categorical,
                         normalize_grade, normalize_idh, raw_str, to_float)
@@ -53,6 +53,9 @@ class RHUHAdapter:
 
                 yield RawSession(
                     dataset=self.name, patient_id=pid, session_index=idx,
+                    # Session 0 is the preoperative baseline; 1 and 2 follow surgery.
+                    acquisition_context=(AcquisitionContext.PREOP if idx == 0
+                                         else AcquisitionContext.POSTOP),
                     t1_path=rel("t1"), t1ce_path=rel("t1ce"),
                     t2_path=rel("t2"), flair_path=rel("flair"),
                     seg_path=rel("segmentations"),
