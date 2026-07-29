@@ -24,6 +24,7 @@ DATA_ROOTS = {
     "rhuh_gbm": "/mnt/disk1/datasets/RHUH-GBM",
     "ucsf_pdgm": "/mnt/disk1/datasets/UCSF-PDGM",
     "upenn_gbm": "/mnt/disk1/datasets/UPENN-GBM",
+    "lumiere": "/mnt/disk1/datasets/LUMIERE",
 }
 
 
@@ -100,6 +101,6 @@ def cohort():
     config = CohortConfig(
         data_roots={k: Path(v) for k, v in DATA_ROOTS.items()},
         partition_map={"external": {"upenn_gbm"}},
-        priority=["brats2020", "rhuh_gbm", "ucsf_pdgm"],
+        priority=["brats2020", "rhuh_gbm", "ucsf_pdgm", "lumiere"],
     )
     return Cohort.from_manifest(MANIFEST_PATH, data_roots=DATA_ROOTS, config=config)

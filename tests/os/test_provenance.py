@@ -26,7 +26,7 @@ class TestTraceArithmetic:
         assert len(study_view) + len(study_view.exclusions()) == trace.n_input
 
     def test_input_is_the_full_manifest(self, study_view):
-        assert study_view.provenance().n_input == 1661
+        assert study_view.provenance().n_input == 2109
 
     def test_steps_chain_without_gaps(self, study_view):
         """Each step must start where the previous one ended."""
@@ -78,4 +78,4 @@ class TestTraceReporting:
         view = cohort.select()
         assert view.provenance().steps == []
         assert view.exclusions().empty
-        assert len(view) == 1661
+        assert len(view) == 2109

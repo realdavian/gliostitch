@@ -48,7 +48,7 @@ from gbm_os import Cohort
 from gbm_os.studies import GBM_OS_STUDY
 
 cohort = Cohort.from_manifest("output/master_manifest.csv", data_roots={...})
-view = GBM_OS_STUDY.apply(cohort)     # 502 sessions — 377 train / 125 external
+view = GBM_OS_STUDY.apply(cohort)     # 531 sessions — 406 train / 125 external
 print(view.provenance())              # how it got there
 ```
 
@@ -57,14 +57,15 @@ print(view.provenance())              # how it got there
 ## The cohort, at a glance
 
 ```
-input                      1661     every imaging session on disk
-baseline_only              1661 →   1521
-require_complete           1521 →   1126
-filter:eor                 1126 →    526
-filter:who_grade            526 →    509
-filter:has_os               509 →    503
-resolve_duplicates          503 →    502
-selected                    502     377 training / 125 external
+input                      2109     every imaging session on disk
+baseline_only              2109 →   1590
+require_complete           1590 →   1195
+filter:eor                 1195 →    572
+filter:who_grade            572 →    555
+filter:has_os               555 →    547
+filter:acquisition_context  547 →    532
+resolve_duplicates          532 →    531
+selected                    531     406 training / 125 external
 ```
 
-Reasons partition the drops exactly, so `selected + excluded == 1661` always holds.
+Reasons partition the drops exactly, so `selected + excluded == 2109` always holds.

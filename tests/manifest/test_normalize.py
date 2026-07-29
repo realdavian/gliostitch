@@ -2,6 +2,7 @@
 import pytest
 
 from gbm_manifest.adapters.normalize import (
+    days_from_weeks,
     event_from_censored_flag,
     event_from_int,
     event_from_status,
@@ -184,6 +185,18 @@ class TestNormalizeMgmt:
     def test_indeterminate(self):
         assert normalize_mgmt("indeterminate") is None
 
+    def test_not_methylated_is_unmethylated(self):
+        """LUMIERE spells it 'not methylated' — which contains 'meth'.
+
+        Matching the positive token first inverts the label, so this guards a
+        sign flip rather than a missing value.
+        """
+        assert normalize_mgmt("not methylated") == "unmethylated"
+
+    def test_other_negated_spellings(self):
+        for raw in ("non-methylated", "non methylated", "un-methylated", "no methylation"):
+            assert normalize_mgmt(raw) == "unmethylated", raw
+
 
 # --- normalize_idh -----------------------------------------------------------
 class TestNormalizeIdh:
@@ -198,3 +211,24 @@ class TestNormalizeIdh:
 
     def test_blank(self):
         assert normalize_idh("") is None
+
+    def test_variant_named_instead_of_status(self):
+        """LUMIERE writes 'R132H mut' — the token is not at the front."""
+        assert normalize_idh("R132H mut") == "mutant"
+
+    def test_inconclusive_assay_is_missing_not_wildtype(self):
+        """'IDH1 neg, Sequencing required' reports an unfinished test.
+
+        Reading it as wildtype would invent a molecular result.
+        """
+        assert normalize_idh("IDH1 neg, Sequencing required") is None
+
+
+# --- days_from_weeks ---------------------------------------------------------
+class TestDaysFromWeeks:
+    def test_converts(self):
+        assert days_from_weeks(72) == 504.0
+
+    def test_blank(self):
+        assert days_from_weeks("") is None
+        assert days_from_weeks("na") is None

@@ -11,6 +11,7 @@ class Dataset(str, Enum):
     RHUH_GBM = "rhuh_gbm"
     UPENN_GBM = "upenn_gbm"
     UCSF_PDGM = "ucsf_pdgm"
+    LUMIERE = "lumiere"
 
 
 class Modality(str, Enum):
@@ -24,6 +25,14 @@ class Modality(str, Enum):
 class SegConvention(str, Enum):
     BRATS_LEGACY = "brats_legacy"   # {0,1,2,4}  ET = 4
     RHUH = "rhuh"                   # {0,1,2,3}  ET = 3 -> remap 3->4 at load
+    # DeepBraTumIA, as shipped by LUMIERE. {0,1,2,3} but NOT the RHUH ordering:
+    # ET = 1, necrosis = 2, edema = 3. The publication names the three
+    # compartments without giving their numeric values, so this was measured —
+    # label 1 sits at 1.56x mean brain intensity on post-contrast T1 (IQR
+    # 1.42-1.67) across all 45 preoperative studies, labels 2 and 3 at 0.84 and
+    # 0.99. Reusing the RHUH mapping would silently swap enhancing tumour with
+    # edema. See analysis/ for the measurement.
+    LUMIERE = "lumiere"             # {0,1,2,3}  ET = 1 -> permuted at load
 
 
 class AcquisitionContext(str, Enum):
@@ -178,6 +187,7 @@ SEG_CONVENTION_BY_DATASET: dict[Dataset, SegConvention] = {
     Dataset.UPENN_GBM: SegConvention.BRATS_LEGACY,
     Dataset.UCSF_PDGM: SegConvention.BRATS_LEGACY,
     Dataset.RHUH_GBM: SegConvention.RHUH,
+    Dataset.LUMIERE: SegConvention.LUMIERE,
 }
 
 INTENSITY_PRENORMALISED: dict[Dataset, bool] = {
@@ -185,6 +195,9 @@ INTENSITY_PRENORMALISED: dict[Dataset, bool] = {
     Dataset.UPENN_GBM: False,
     Dataset.UCSF_PDGM: False,
     Dataset.RHUH_GBM: True,
+    # Raw scanner units (0-1090 observed); skull-stripped and co-registered
+    # by the publishers, but not intensity-normalised.
+    Dataset.LUMIERE: False,
 }
 
 

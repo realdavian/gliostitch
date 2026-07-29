@@ -25,11 +25,11 @@ def df():
 
 class TestManifestLoad:
     def test_row_count(self, df):
-        assert len(df) == 1661
+        assert len(df) == 2109
 
     def test_datasets(self, df):
         assert set(df["dataset"].unique()) == {
-            "brats2020", "rhuh_gbm", "ucsf_pdgm", "upenn_gbm"
+            "brats2020", "lumiere", "rhuh_gbm", "ucsf_pdgm", "upenn_gbm"
         }
 
     def test_derived_columns_present(self, df):

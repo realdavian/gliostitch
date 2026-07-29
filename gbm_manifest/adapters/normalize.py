@@ -142,18 +142,34 @@ def normalize_idh(raw) -> Optional[str]:
     s = str(raw).strip().lower()
     if s.startswith("wt") or "wild" in s:
         return "wildtype"
-    if s.startswith("mut"):
+    # LUMIERE names the variant rather than the status ("R132H mut"), so the
+    # mutation token can sit anywhere in the string, not just at the front.
+    # Anything that only reports an inconclusive assay ("IDH1 neg, Sequencing
+    # required") stays None: not-yet-sequenced is missing, not wildtype.
+    if "mut" in s or "r132h" in s:
         return "mutant"
     return None
 
 
 def normalize_mgmt(raw) -> Optional[str]:
-    """Order matters: test 'unmeth' before 'meth'."""
+    """Order matters: every negated form has to be tested before 'meth'.
+
+    'not methylated' contains 'meth' but means its opposite. Matching the
+    positive token first silently inverts the label, so negations are listed
+    exhaustively and checked first.
+    """
     if _blank(raw):
         return None
     s = str(raw).strip().lower()
-    if "unmeth" in s or s in {"negative", "neg"}:
+    negated = ("unmeth", "un-meth", "not meth", "non-meth", "non meth", "no meth")
+    if any(t in s for t in negated) or s in {"negative", "neg"}:
         return "unmethylated"
     if "meth" in s or s in {"positive", "pos"}:
         return "methylated"
     return None
+
+
+def days_from_weeks(weeks) -> Optional[float]:
+    """LUMIERE records survival in whole weeks; the manifest stores days."""
+    w = to_float(weeks)
+    return None if w is None else w * 7.0

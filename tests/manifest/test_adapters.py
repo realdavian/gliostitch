@@ -98,6 +98,7 @@ class TestLeftScan:
         counts = synthetic_manifest.groupby("dataset").size().to_dict()
         assert counts == {
             "brats2020": 4, "rhuh_gbm": 2, "ucsf_pdgm": 1, "upenn_gbm": 3,
+            "lumiere": 5,
         }
 
     def test_no_nan_strings(self, synthetic_manifest):
