@@ -191,7 +191,20 @@ so a survival model has no label to train on or evaluate against. They are exclu
 Training moves by one — the six UPENN sessions are joined by a single LUMIERE
 patient whose preoperative study is on disk but whose survival time is not recorded.
 
-`gbm-os-no-survival-filter` reproduces the original 131 for reconciliation only.
+A `gbm-os-no-survival-filter` study once existed to reproduce the 131 programmatically. It
+was removed: a third named study earned its keep only by explaining a number no longer in
+use, and every study in the registry should be one somebody might legitimately run. To
+reproduce it, drop the criterion from a copy of the study rather than shipping one:
+
+```python
+from dataclasses import replace
+from gbm_os.studies import GBM_OS_STUDY
+
+no_has_os = replace(GBM_OS_STUDY, filters={
+    k: v for k, v in GBM_OS_STUDY.filters.items() if k != "has_os"
+})
+len(no_has_os.apply(cohort).to_frame().query("dataset == 'upenn_gbm'"))   # 131
+```
 
 ### RHUH has 40 patients, not 43
 

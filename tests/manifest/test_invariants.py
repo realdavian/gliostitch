@@ -125,7 +125,7 @@ class TestStudyChoiceDoesNotReachTheManifest:
 
     def test_manifest_is_byte_identical_across_studies(self, synthetic_roots, tmp_path):
         a = self._build(synthetic_roots, tmp_path / "a", "gbm-os")
-        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-no-survival-filter")
+        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-any-eor")
 
         assert _digest(a / "master_manifest.csv") == _digest(b / "master_manifest.csv")
 
@@ -134,7 +134,7 @@ class TestStudyChoiceDoesNotReachTheManifest:
         import pandas as pd
 
         a = self._build(synthetic_roots, tmp_path / "a", "gbm-os")
-        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-no-survival-filter")
+        b = self._build(synthetic_roots, tmp_path / "b", "gbm-os-any-eor")
 
         rows_a = len(pd.read_csv(a / "master_manifest.csv"))
         rows_b = len(pd.read_csv(b / "master_manifest.csv"))

@@ -128,21 +128,29 @@ gliostitch studies            # list
 gliostitch studies gbm-os     # full definition
 ```
 
+There are two, and they differ in exactly one criterion: whether a gross-total resection
+is required. Both are preoperative, both band survival at 300/450 days, both hold out
+UPENN-GBM.
+
 | Study | Criteria | Cohort |
 |---|---|---|
-| `gbm-os` **(canonical)** | preop ∩ baseline ∩ complete ∩ GTR ∩ grade-IV ∩ has-OS | 531 — 406 train / 125 external |
-| `gbm-os-preop` | preop ∩ baseline ∩ complete ∩ grade-IV ∩ has-OS; no EOR criterion | 925 — 721 train / 204 external |
-| `gbm-os-no-survival-filter` | reconciliation only; omits has-OS | 538 — 407 train / 131 external |
+| `gbm-os` **(default)** | preop ∩ baseline ∩ complete ∩ grade-IV ∩ has-OS ∩ **GTR** | 531 — 406 train / 125 external |
+| `gbm-os-any-eor` | the same, **without** the EOR criterion | 925 — 721 train / 204 external |
 
-`gbm-os-preop` is the "true pre-op" cohort: extent of resection is a treatment, so it
+`gbm-os-any-eor` is the deployment-valid cohort. Extent of resection is a treatment, so it
 describes something that happens *after* the scan being predicted from, and requiring it
-leaves a cohort nobody can identify prospectively. EOR stays as a recorded covariate, and
-`gbm-os` is exactly the GTR stratum of `gbm-os-preop` — the two nest, so the stricter
-cohort remains reachable as a sensitivity analysis.
+leaves a cohort nobody can identify prospectively — at inference time no one knows who will
+get a gross-total resection. EOR stays as a recorded covariate.
 
-`gbm-os-no-survival-filter` exists solely to reproduce the 131 figure originally recorded
-for this cohort, before the `has-OS` criterion was reconciled between the two specs. It is
-not the study cohort; `studies.CANONICAL` names the one that is.
+`gbm-os` is exactly the GTR stratum of `gbm-os-any-eor`. The two nest, so the stricter
+cohort is reachable as a sensitivity analysis rather than a separate, incomparable run:
+
+```python
+strict = any_eor_view.select(filters={"eor": "GTR"})   # == the gbm-os cohort
+```
+
+`version` on a study is that study's own revision counter, not a shared timeline —
+`gbm-os` v2 and `gbm-os-any-eor` v1 are siblings, not successive releases.
 
 **Censoring is not filtered by any study.** The manifest records censored outcomes, and
 whether a model may use them is a modelling decision made downstream:
