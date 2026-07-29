@@ -69,6 +69,13 @@ class NewDatasetAdapter:
 
         Never skip a subject for missing modalities or missing clinical data —
         those become null paths and null fields, resolved downstream.
+
+        Every RawSession must carry an `acquisition_context`. Do not assume the
+        earliest session is preoperative — decide it from what the dataset
+        actually documents, and use UNKNOWN when it documents nothing. A cohort
+        whose first study follows surgery still has session_index == 0, so a
+        wrong value here puts postoperative scans into a preoperative cohort
+        with nothing downstream to catch it.
         """
 
     def load_clinical(self) -> dict[str, ClinicalRecord]:

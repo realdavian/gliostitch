@@ -131,6 +131,55 @@ class TestGBMOSPreopStudy:
         assert len(preop_view) + len(preop_view.exclusions()) == 1661
 
 
+class TestPreoperativeIsAsserted:
+    """'Preoperative' must be a recorded fact, not an inference from ordering.
+
+    session_index == 0 means "earliest session on record". For the four current
+    datasets the earliest session happens to be preoperative, so the two agree
+    and this suite is a tautology — which is the point. It stops agreeing the
+    moment a cohort arrives whose first study follows surgery, and that is
+    exactly when a silent contamination would otherwise enter the cohort.
+    """
+
+    def test_study_requires_it_explicitly(self):
+        assert GBM_OS_PREOP_STUDY.filters["acquisition_context"] == "preop"
+
+    def test_no_postoperative_session_is_ever_selected(self, preop_view):
+        assert (preop_view.to_frame()["acquisition_context"] == "preop").all()
+
+    def test_rhuh_follow_ups_are_postoperative(self, cohort):
+        """RHUH sessions 1 and 2 follow the resection."""
+        df = cohort.select().to_frame()
+        rhuh = df[df["dataset"] == "rhuh_gbm"]
+        assert (rhuh[rhuh["session_index"] > 0]["acquisition_context"] == "postop").all()
+        assert (rhuh[rhuh["session_index"] == 0]["acquisition_context"] == "preop").all()
+
+    def test_upenn_second_timepoint_is_postoperative(self, cohort):
+        """UPENN _11 is presurgical, _21 is a follow-up."""
+        df = cohort.select().to_frame()
+        upenn = df[df["dataset"] == "upenn_gbm"]
+        assert (upenn[upenn["session_index"] == 1]["acquisition_context"] == "postop").all()
+
+    def test_every_session_is_classified(self, cohort):
+        """No dataset may fall through to unknown without someone deciding."""
+        contexts = set(cohort.select().to_frame()["acquisition_context"].unique())
+        assert contexts == {"preop", "postop"}
+
+    def test_filter_is_a_no_op_on_the_current_four_datasets(self, cohort):
+        """Adding the criterion must not have moved any existing number.
+
+        If this fails, the criterion changed the cohort rather than pinning it,
+        and the counts in every other test are no longer comparable.
+        """
+        from dataclasses import replace
+
+        without = replace(GBM_OS_PREOP_STUDY, filters={
+            k: v for k, v in GBM_OS_PREOP_STUDY.filters.items()
+            if k != "acquisition_context"
+        })
+        assert len(without.apply(cohort)) == len(GBM_OS_PREOP_STUDY.apply(cohort)) == 881
+
+
 class TestPhase1Delegates:
     def test_cohort_stage_owns_no_criteria(self):
         """The pipeline stage must not re-encode eligibility rules."""

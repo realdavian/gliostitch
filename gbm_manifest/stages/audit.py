@@ -25,6 +25,7 @@ def _discover_one(adapter: DatasetAdapter) -> list[dict]:
             "dataset": s.dataset.value,
             "patient_id": s.patient_id,
             "session_index": s.session_index,
+            "acquisition_context": s.acquisition_context.value,
             "global_session_key": s.global_session_key,
             "t1_path": s.t1_path,
             "t1ce_path": s.t1ce_path,
