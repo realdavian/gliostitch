@@ -222,3 +222,6 @@ __marimo__/
 .seed
 docs
 output
+
+# Session handoff notes — local working context, not project documentation
+HANDOFF.md
