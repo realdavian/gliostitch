@@ -9,8 +9,8 @@
 Reproducible cohort selection over five public glioma MRI datasets — stitched into one
 manifest of facts, with a study definition layered on top.
 
-Assembling a multi-cohort GBM study means reconciling four different directory layouts,
-four clinical CSV conventions, three ID formats, two segmentation label schemes, and an
+Assembling a multi-cohort GBM study means reconciling five different directory layouts,
+five clinical CSV conventions, five ID formats, three segmentation label schemes, and an
 unknown number of patients who appear in more than one dataset. Most of that work gets
 done once, in a notebook, and is difficult to reproduce six months later.
 
@@ -21,10 +21,10 @@ research question does.
 
 ```
 2109 imaging sessions  →  study definition  →  531 sessions (406 training / 125 external)
-                                                with a reason attached to all 1159 exclusions
+                                                with a reason attached to all 1578 exclusions
 ```
 
-**Datasets:** BraTS-2020 · UCSF-PDGM · UPENN-GBM · RHUH-GBM
+**Datasets:** BraTS-2020 · UCSF-PDGM · UPENN-GBM · RHUH-GBM · LUMIERE
 *(not redistributed — you supply the data and configure its location)*
 
 ---
@@ -124,7 +124,22 @@ Eligibility:
   - eor == 'GTR'
   - who_grade in [4, None]
   - has_os == True
+  - acquisition_context == 'preop'
 ```
+
+There are two studies, differing in exactly one criterion — whether a gross-total resection
+is required:
+
+| Study | Cohort |
+|---|---|
+| `gbm-os` **(default)** | 531 — 406 train / 125 external |
+| `gbm-os-any-eor` | 925 — 721 train / 204 external |
+
+`gbm-os-any-eor` is the deployment-valid one: extent of resection is a treatment that
+happens *after* the scan being predicted from, so requiring it leaves a cohort nobody can
+identify prospectively. `gbm-os` is exactly its GTR stratum — the two nest, so the stricter
+cohort is reachable as a sensitivity analysis rather than a separate run. See
+[Architecture](developer-docs/01_architecture.md) for the full argument.
 
 Changing the study cannot change the manifest — building under a different one produces a
 byte-identical CSV. That property is enforced by a test.
@@ -176,7 +191,7 @@ pytest tests/manifest    # pipeline only — runs against a synthetic dataset tr
                          # no real data needed, ~1 s
 ```
 
-The pipeline suite builds a miniature four-dataset tree on the fly and runs the real
+The pipeline suite builds a miniature five-dataset tree on the fly and runs the real
 adapters against it, so join contracts are testable without access to the MRI data. Tests
 that need a built manifest skip themselves with a reason.
 
@@ -203,8 +218,9 @@ resolves to the latest version. To pin a specific one, cite its version DOI inst
 
 ORCID: [0009-0005-2683-1528](https://orcid.org/0009-0005-2683-1528)
 
-Please also cite the source datasets — BraTS-2020, UCSF-PDGM, UPENN-GBM and RHUH-GBM each
-have their own citation requirements, and this project redistributes none of them.
+Please also cite the source datasets — BraTS-2020, UCSF-PDGM, UPENN-GBM, RHUH-GBM and
+LUMIERE each have their own citation requirements, and this project redistributes none of
+them.
 
 ## Licence
 

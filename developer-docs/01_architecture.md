@@ -276,7 +276,7 @@ tests/
               duplicate_policy · path_resolution · cv_splits · cohort_summary · transforms
   test_packaging.py    spans both
   conftest.py          fixtures
-  synthetic.py         miniature four-dataset tree
+  synthetic.py         miniature five-dataset tree
 ```
 
 `tests/manifest` runs against a **synthetic dataset tree** built on the fly — the real

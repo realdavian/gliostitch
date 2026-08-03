@@ -121,15 +121,30 @@ every subject missing from it. Keep the fact; let `clinical_row_found` record th
 ### 5. Reuse the normalisers
 
 Never re-implement vocabulary mapping. `adapters/normalize.py` is the tested single source
-for all four survival encodings, grade, EOR, IDH and MGMT.
+for all five survival encodings, grade, EOR, IDH and MGMT.
 
 ```python
-from .normalize import (parse_survival_days, event_from_status, normalize_grade,
-                        normalize_eor_categorical, normalize_idh, normalize_mgmt)
+from .normalize import (parse_survival_days, event_from_status, days_from_weeks,
+                        normalize_grade, normalize_eor_categorical, normalize_idh,
+                        normalize_mgmt)
 ```
 
 Extend it only when a dataset produces a raw value none of them cover — and add the
 assertion to `tests/manifest/test_normalize.py` in the same commit.
+
+**Extent of resection is four-valued, not binary.** `EORCategory` is `GTR / NTR / STR /
+BIOPSY`, plus `UNKNOWN` — near-total resection is its own extent, not a flavour of GTR and
+not missing data. A dataset that records only "GTR yes/no" (UPENN) maps to `GTR / non_GTR`;
+one that names the extent (BraTS, RHUH, UCSF) maps to the full vocabulary.
+
+Two ordering traps are already handled, and both invert a label rather than dropping it:
+
+- **NTR is matched first, on a word boundary.** RHUH writes a bare `NTR`, and `ntr` is a
+  substring of ordinary words like "contrast". A loose substring test would either miss the
+  bare token — recording a known extent as `UNKNOWN` and inflating the unknown stratum — or
+  fire on unrelated prose.
+- **Negated MGMT forms are tested before `meth`.** "not methylated" contains "meth" but
+  means its opposite, so every negation is enumerated and checked first.
 
 ### 6. Add it to the synthetic fixture
 
